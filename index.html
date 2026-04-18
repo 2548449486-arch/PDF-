@@ -905,13 +905,11 @@ window.addEventListener('error', function(e) {
   </div>
 </div>
 <script>
-// CONFIG
+// ══ CONFIG ══════════════════════════════════════
 const CFG={
   url:'https://openrouter.ai/api/v1/chat/completions',
-  imgUrl:'https://openrouter.ai/api/v1/chat/completions',
-  key:'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',
-  model:'anthropic/claude-opus-4-6',
-  imgModel:'google/gemini-2.0-flash-exp:free',
+  model:'anthropic/claude-sonnet-4-6',
+  fallbackModel:'anthropic/claude-haiku-4-5',
   ref:'https://qxtian.app'
 };
 const CODES={
@@ -1075,20 +1073,20 @@ const CODES={
   QXFREE:{plan:'体验版',uses:5,days:7},
 };
 const THEMES={
-  business:{bg:'#1B3A6B',ac:'#4A90D9'},
-  education:{bg:'#C2410C',ac:'#EA580C'},
-  creative:{bg:'#7C3AED',ac:'#A855F7'},
-  tech:{bg:'#0D1117',ac:'#00D4AA'},
-  green:{bg:'#064E3B',ac:'#10B981'},
-  gold:{bg:'#78350F',ac:'#D97706'},
+  navy:   {bg:'#1B3A6B',ac:'#4DA6FF',lt:'#EBF5FF',tx:'FFFFFF',at:'4DA6FF',nm:'深海蓝'},
+  rose:   {bg:'#5C1A1A',ac:'#E63946',lt:'#FFF0F0',tx:'FFFFFF',at:'E63946',nm:'玫瑰红'},
+  forest: {bg:'#1B4332',ac:'#52B788',lt:'#F0FFF4',tx:'FFFFFF',at:'52B788',nm:'森林绿'},
+  indigo: {bg:'#312E81',ac:'#818CF8',lt:'#EEF2FF',tx:'FFFFFF',at:'818CF8',nm:'靛紫色'},
+  slate:  {bg:'#1E293B',ac:'#F0A500',lt:'#FFFBEB',tx:'FFFFFF',at:'F0A500',nm:'石板金'},
+  teal:   {bg:'#134E4A',ac:'#2DD4BF',lt:'#F0FDFA',tx:'FFFFFF',at:'2DD4BF',nm:'青绿色'},
 };
-let ST={pptData:null,pdfHtml:null,pdfTxt:null,rvHtml:null,rvTxt:null,isGuest:false,lastStyle:'business'};
+let ST={pptData:null,pdfHtml:null,pdfTxt:null,rvHtml:null,rvTxt:null,isGuest:false,lastStyle:'navy'};
 var skills=[];
 
-// ── UTILS ──────────────────────────────────────────────────────────
 function g(id){return document.getElementById(id)}
 function vib(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
-function getKey(){return localStorage.getItem('qx_key')||CFG.key}
+function getKey(){return localStorage.getItem('qx_key')||CFG.key||CFG.url&&'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'}
+function getAK(){return localStorage.getItem('qx_key')||'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'}
 function getChip(gid){var el=g(gid);if(!el)return '';var a=el.querySelector('.chip.on');return(a&&a.dataset)?a.dataset.v:''}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function setEl(id,txt){var e=g(id);if(e)e.textContent=txt}
@@ -1102,8 +1100,6 @@ function toast(msg,type,dur){
   g('toasts').appendChild(d);
   setTimeout(function(){d.classList.add('out');setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d)},280)},dur);
 }
-
-// chip toggle via delegation
 document.addEventListener('click',function(e){
   var chip=e.target.closest('.chip');
   if(!chip)return;
@@ -1113,8 +1109,6 @@ document.addEventListener('click',function(e){
   chip.classList.add('on');vib(4);
 });
 
-
-// ── AUTH ────────────────────────────────────────────────────────────
 function getSess(){return JSON.parse(localStorage.getItem('qx_sess')||'null')}
 function saveSess(s){localStorage.setItem('qx_sess',JSON.stringify(s))}
 
@@ -1136,8 +1130,7 @@ function doAct(){
 
 function guestIn(){
   var s={code:'GUEST',plan:'游客',uses:2,usedCount:0,isGuest:true,
-    activated:new Date().toLocaleDateString('zh-CN'),
-    expiry:Date.now()+864e5,expiryStr:'明天'};
+    activated:new Date().toLocaleDateString('zh-CN'),expiry:Date.now()+864e5,expiryStr:'明天'};
   saveSess(s);ST.isGuest=true;enterApp(s);
   toast('游客模式：2次免费体验（含水印）','wa',4000);
 }
@@ -1146,28 +1139,20 @@ function checkUse(){
   var s=getSess();if(!s)return false;
   if(!s.isGuest&&s.expiry<Date.now()){doLogout(true);return false}
   if((s.usedCount||0)>=s.uses){
-    if(s.isGuest){
-      showMo('🌟 升级解锁无限次','游客体验已用完！购买激活码即可无限生成，¥9.9起。',
-        [{t:'去购买',fn:function(){closeMo();doLogout(false)}}],[{t:'暂不'}]);
-    }else{toast('使用次数已用完，请联系客服续费','wa')}
+    if(s.isGuest)showMo('🌟 升级解锁无限次','游客已用完！购买激活码无限生成，¥9.9起。',
+      [{t:'去购买',fn:function(){closeMo();doLogout(false)}}],[{t:'暂不'}]);
+    else toast('使用次数已用完，请续费','wa');
     return false;
   }
   return true;
 }
-
-function addUse(){
-  var s=getSess();if(!s)return;
-  s.usedCount=(s.usedCount||0)+1;saveSess(s);
-  refreshHome(s);refreshAcc(s);
-}
-
+function addUse(){var s=getSess();if(!s)return;s.usedCount=(s.usedCount||0)+1;saveSess(s);refreshHome(s);refreshAcc(s)}
 function enterApp(s){
   ST.isGuest=s.isGuest||false;
   var lgn=g('login');if(lgn)lgn.classList.remove('vis');
   var app=g('app');if(app)app.classList.add('vis');
   refreshHome(s);refreshAcc(s);
 }
-
 function doLogout(expired){
   localStorage.removeItem('qx_sess');
   var app=g('app');if(app)app.classList.remove('vis');
@@ -1175,10 +1160,7 @@ function doLogout(expired){
   if(expired)toast('账号已过期，请续费','wa');
 }
 
-
-// ── NAVIGATION ──────────────────────────────────────────────────────
 var NAV_MAP={home:'nb-home',ppt:'nb-ppt',history:'nb-history',account:'nb-account'};
-
 function go(name){
   vib(6);
   ['home','ppt','pdf','resume','history','account'].forEach(function(p){
@@ -1190,19 +1172,16 @@ function go(name){
   if(name==='history')renderHist();
   if(name==='account')refreshAcc(getSess());
 }
-
 function openSheet(){vib(8);var el=g('sh-ov');if(el)el.classList.add('vis')}
 function closeSheet(){var el=g('sh-ov');if(el)el.classList.remove('vis')}
 
-
-// ── HOME & ACCOUNT REFRESH ──────────────────────────────────────────
 function refreshHome(s){
   if(!s)return;
   var h=new Date().getHours();
   var gr=h<5?'深夜好 🌙':h<9?'早上好 ☀️':h<12?'上午好 🌤':h<14?'中午好 🍜':h<18?'下午好 ⛅':'晚上好 🌙';
   setEl('hm-greet',gr);
-  var icons={体验版:'🌱',月度VIP:'🌙',年度VIP:'👑',企业版:'🏢',游客:'👀'};
-  setEl('hm-plan',(icons[s.plan]||'✨')+' '+s.plan+(s.isGuest?' · 体验中':''));
+  var ic={体验版:'🌱',月度VIP:'🌙',年度VIP:'👑',企业版:'🏢',游客:'👀'};
+  setEl('hm-plan',(ic[s.plan]||'✨')+' '+s.plan+(s.isGuest?' · 体验中':''));
   var used=s.usedCount||0;var total=s.uses>=99999?'∞':s.uses;
   setEl('hm-use-txt','已使用 '+used+' 次 / '+total);
   var pct=s.uses>=99999?(used>0?15:0):Math.min(100,used/s.uses*100);
@@ -1210,36 +1189,30 @@ function refreshHome(s){
   setEl('hm-use-pct',s.uses>=99999?'无限制':Math.round(pct)+'%');
   renderHomeHist();
 }
-
 function renderHomeHist(){
   var arr=getHist().slice(0,3);var el=g('hm-hist');if(!el)return;
   if(!arr.length){el.innerHTML='<div class="empty"><span class="empty-em">🌸</span><p>还没有创作记录<br>点击上方快速开始！</p></div>';return}
   el.innerHTML=arr.map(function(h){return histCardHTML(h,false)}).join('');
 }
-
 function refreshAcc(s){
   if(!s)return;
-  setEl('ac-plan',s.plan);
-  setEl('ac-tag',s.plan+(s.isGuest?' · 游客':''));
+  setEl('ac-plan',s.plan);setEl('ac-tag',s.plan+(s.isGuest?' · 游客':''));
   setEl('ac-exp',s.isGuest?'游客账号（今日有效）':'到期：'+s.expiryStr);
   setEl('ac-used',String(s.usedCount||0));
   setEl('ac-left',s.uses>=99999?'∞':String(Math.max(0,s.uses-(s.usedCount||0))));
   setEl('ac-hist',String(getHist().length));
 }
 
-
-// ── API CALL (XHR, iOS compatible) ──────────────────────────────────
-function xhrPost(url,payload,timeoutMs){
-  timeoutMs=timeoutMs||120000;
+function xhrPost(url,payload,timeoutMs,onErr){
   return new Promise(function(resolve,reject){
     try{
       var xhr=new XMLHttpRequest();
       xhr.open('POST',url,true);
-      xhr.setRequestHeader('Authorization','Bearer '+getKey());
+      xhr.setRequestHeader('Authorization','Bearer '+getAK());
       xhr.setRequestHeader('Content-Type','application/json');
-      xhr.timeout=timeoutMs;
+      xhr.timeout=timeoutMs||120000;
       xhr.ontimeout=function(){reject(new Error('请求超时，请检查网络'))};
-      xhr.onerror=function(){reject(new Error('网络连接失败，请检查网络'))};
+      xhr.onerror=function(){reject(new Error(onErr||'网络连接失败，请检查网络'))};
       xhr.onload=function(){
         try{
           if(xhr.status!==200){
@@ -1251,122 +1224,38 @@ function xhrPost(url,payload,timeoutMs){
         }catch(pe){reject(new Error('响应解析失败: '+pe.message))}
       };
       xhr.send(JSON.stringify(payload));
-    }catch(xe){reject(new Error('请求初始化失败: '+xe.message))}
+    }catch(xe){reject(new Error('请求失败: '+xe.message))}
   });
 }
 
 function callAI(userMsg,sysMsg,maxTok){
+  // Try primary model, fallback to secondary
   return xhrPost(CFG.url,{
     model:CFG.model,max_tokens:maxTok||4000,
     messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
   }).then(function(d){
     if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
     return d.choices[0].message.content||'';
+  }).catch(function(err){
+    // Fallback to secondary model
+    if(CFG.fallbackModel&&err.message.indexOf('region')>=0){
+      return xhrPost(CFG.url,{
+        model:CFG.fallbackModel,max_tokens:maxTok||4000,
+        messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
+      }).then(function(d){
+        if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
+        return d.choices[0].message.content||'';
+      });
+    }
+    throw err;
   });
 }
 
-
-// ── IMAGE GENERATION (Gemini via OpenRouter) ─────────────────────────
-function strHash(str){
-  var h=0;for(var i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h=h&h}
-  return Math.abs(h);
-}
-
-// Ask Gemini to generate image for slide, fallback to Picsum
-function genSlideImage(keyword,seed){
-  return new Promise(function(resolve){
-    // Try Gemini image generation via OpenRouter
-    try{
-      var xhr=new XMLHttpRequest();
-      xhr.open('POST',CFG.imgUrl,true);
-      xhr.setRequestHeader('Authorization','Bearer '+getKey());
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.timeout=20000;
-      xhr.ontimeout=function(){fetchPicsum(seed,resolve)};
-      xhr.onerror=function(){fetchPicsum(seed,resolve)};
-      xhr.onload=function(){
-        try{
-          var d=JSON.parse(xhr.responseText);
-          var msg=d.choices&&d.choices[0]&&d.choices[0].message;
-          if(!msg){fetchPicsum(seed,resolve);return}
-          // Check for image in multimodal response
-          var parts=Array.isArray(msg.content)?msg.content:[];
-          for(var i=0;i<parts.length;i++){
-            var p=parts[i];
-            if(p&&p.type==='image_url'&&p.image_url&&p.image_url.url){
-              var url=p.image_url.url;
-              if(url.indexOf('data:image')===0){resolve(url.split(',')[1]);return}
-              // External URL - fetch and convert
-              fetchImgUrl(url,function(b64){b64?resolve(b64):fetchPicsum(seed,resolve)});
-              return;
-            }
-            if(p&&p.inline_data&&p.inline_data.data){resolve(p.inline_data.data);return}
-          }
-          // No image in response - use Picsum
-          fetchPicsum(seed,resolve);
-        }catch(e){fetchPicsum(seed,resolve)}
-      };
-      // Gemini image generation prompt
-      var imgPrompt='Generate a professional high-quality presentation slide image for: '+keyword+'. Make it business-appropriate, visually stunning, photorealistic, 16:9 aspect ratio.';
-      xhr.send(JSON.stringify({
-        model:CFG.imgModel,max_tokens:1024,
-        messages:[{role:'user',content:imgPrompt}]
-      }));
-    }catch(xe){fetchPicsum(seed,resolve)}
-  });
-}
-
-function fetchImgUrl(url,cb){
-  var img=new Image();
-  img.crossOrigin='anonymous';
-  var t=setTimeout(function(){cb(null)},8000);
-  img.onload=function(){
-    clearTimeout(t);
-    try{
-      var cv=document.createElement('canvas');cv.width=1280;cv.height=720;
-      cv.getContext('2d').drawImage(img,0,0,1280,720);
-      cb(cv.toDataURL('image/jpeg',0.82).split(',')[1]);
-    }catch(e){cb(null)}
-  };
-  img.onerror=function(){clearTimeout(t);cb(null)};
-  img.src=url;
-}
-
-function fetchPicsum(seed,cb){
-  var img=new Image();
-  img.crossOrigin='anonymous';
-  var t=setTimeout(function(){cb(null)},8000);
-  img.onload=function(){
-    clearTimeout(t);
-    try{
-      var cv=document.createElement('canvas');cv.width=1280;cv.height=720;
-      cv.getContext('2d').drawImage(img,0,0,1280,720);
-      cb(cv.toDataURL('image/jpeg',0.82).split(',')[1]);
-    }catch(e){cb(null)}
-  };
-  img.onerror=function(){clearTimeout(t);cb(null)};
-  img.src='https://picsum.photos/seed/'+seed+'/1280/720';
-}
-
-function fetchAllImages(slides,onProgress){
-  var promises=slides.map(function(slide,idx){
-    var kw=(slide.keywords||slide.title||'business '+idx);
-    var seed=(strHash(kw)+idx*31)%900+50;
-    return genSlideImage(kw,seed).then(function(img){
-      if(onProgress)onProgress(idx+1,slides.length);
-      return img;
-    });
-  });
-  return Promise.all(promises);
-}
-
-
-// ── PPT GENERATOR ────────────────────────────────────────────────────
 function genPPT(){
   if(!checkUse())return;
   var topic=g('pp-topic').value.trim();
   if(!topic){toast('请输入演示主题','er');return}
-  var style=getChip('pp-style')||'business';
+  var style=getChip('pp-style')||'navy';
   var cnt=parseInt(g('pp-cnt').value||'10',10);
   var lang=getChip('pp-lang')||'zh';
   var extra=g('pp-extra').value.trim();
@@ -1377,161 +1266,405 @@ function genPPT(){
   var ppLd=g('pp-ld');if(ppLd)ppLd.style.display='block';
   var ppRes=g('pp-res');if(ppRes)ppRes.style.display='none';
 
-  function setStep(txt,sub){setEl('pp-step',txt);setEl('pp-step2',sub||'')}
-
-  var stepArr=[['🤖 分析演示主题...','规划整体框架'],['📝 生成幻灯片大纲...','设计逻辑结构'],
-    ['✍️ 撰写各页内容...','填充详细要点'],['🎨 完善细节...','优化表达']];
+  var stepArr=[
+    ['🤖 AI 深度分析主题...','DeepSeek · 专业PPT模型'],
+    ['📐 规划幻灯片架构...','设计逻辑结构与层次'],
+    ['✍️ 撰写各页精品内容...','填充专业数据与要点'],
+    ['🎨 生成专业视觉方案...','高端排版 · 顶级设计']
+  ];
   var si=0;
   var timer=setInterval(function(){
-    try{var st=stepArr[si%stepArr.length];setStep(st[0],st[1]);si++}catch(e){}
+    try{var st=stepArr[si%stepArr.length];setEl('pp-step',st[0]);setEl('pp-step2',st[1]);si++}catch(e){}
   },2200);
 
-  var lmapZh='请全程使用中文';
-  var lmapEn='Please reply entirely in English';
-  var lmapBi='标题用中文，内容用英文';
-  var langNote=lang==='en'?lmapEn:lang==='bi'?lmapBi:lmapZh;
+  var langNote=lang==='en'?'Reply entirely in English.':lang==='bi'?'Titles in Chinese, content in English.':'全程使用中文。';
+  var extraNote=extra?(' 额外要求：'+extra):'';
 
-  // Build prompt as array - avoids iOS Safari escape issues
-  var promptParts=[
-    '为演示主题"'+topic+'"制作'+cnt+'页PPT内容。',
-    langNote,
-    extra?(' 补充要求：'+extra):'',
-    ' 只返回JSON，不含markdown或其他文字，格式：',
-    '{"title":"总标题","subtitle":"副标题","author":"作者",',
-    '"slides":[{"type":"title","title":"封面标题","content":["亮点"],"notes":"备注","keywords":"business meeting"},',
-    '{"type":"content","title":"页标题","content":["要点1","要点2","要点3"],"notes":"备注","keywords":"data analysis"}]}',
-    ' 规则：第1个type为title(封面)；最后1个type为end(结语)；其余type为content；',
-    '每页content 3-5条不超28字；keywords填1-2个英文关键词(用于配图)；共'+cnt+'页。'
+  // Professional structured prompt
+  var pArr=[
+    '你是麦肯锡顶级PPT设计专家。为主题"'+topic+'"制作'+cnt+'页专业演示文稿。',
+    langNote+extraNote,
+    ' 只返回纯JSON，格式：',
+    '{"title":"总标题","subtitle":"一句话定位","theme":"navy|rose|forest|indigo|slate|teal","slides":[',
+    '{"type":"cover","title":"封面大标题","subtitle":"封面副标题"},',
+    '{"type":"section","sectionNum":1,"title":"章节标题","desc":"本章概述"},',
+    '{"type":"content","title":"页面标题","bullets":["要点1，具体数据或论据","要点2","要点3","要点4"],"note":"演讲备注"},',
+    '{"type":"stats","title":"数据洞察","stats":[{"val":"92%","unit":"","label":"指标说明"},{"val":"3.2","unit":"亿","label":"指标说明"},{"val":"TOP 3","unit":"","label":"指标说明"}]},',
+    '{"type":"quote","quote":"核心观点或引言，要精辟有力","source":"来源或作者"},',
+    '{"type":"comparison","title":"对比分析","leftTitle":"方案A","leftPoints":["优势1","优势2"],"rightTitle":"方案B","rightPoints":["优势1","优势2"]},',
+    '{"type":"timeline","title":"发展历程","events":[{"time":"2020年","event":"事件说明"},{"time":"2022年","event":"事件说明"}]},',
+    '{"type":"end","title":"感谢聆听","contact":"联系方式"}',
+    ']}',
+    ' 要求：1.slides共'+cnt+'个 2.第1个type必须为cover 3.最后1个type必须为end ',
+    '4.合理穿插各种type让演示丰富多样 5.内容专业深度，有真实数据和洞察 ',
+    '6.theme选最匹配主题氛围的颜色。'
   ];
-  var prompt=promptParts.join('');
+  var prompt=pArr.join('');
 
-  setStep('🤖 AI 生成内容中...','请耐心等待');
-
-  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，绝不添加任何说明文字。').then(function(raw){
+  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。').then(function(raw){
     clearInterval(timer);
     var json=raw.replace(/```json|```/g,'').trim();
     var si2=json.indexOf('{');var ei=json.lastIndexOf('}');
     if(si2>=0&&ei>si2)json=json.slice(si2,ei+1);
     ST.pptData=JSON.parse(json);
-
-    setStep('🖼 Gemini AI 生成配图中...','OpenRouter · Gemini Vision');
-
-    return fetchAllImages(ST.pptData.slides,function(done,total){
-      setStep('🖼 加载配图 '+done+'/'+total,'Gemini AI 生成中');
-    });
-  }).then(function(imgs){
-    var th=THEMES[ST.lastStyle]||THEMES.business;
-    var prev=g('pp-preview');if(!prev)throw new Error('预览元素丢失');
-    prev.innerHTML=ST.pptData.slides.map(function(slide,idx){
-      var imgEl=imgs[idx]?('<div style="width:60px;height:34px;background:url(data:image/jpeg;base64,'+imgs[idx]+') center/cover;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.3)"></div>'):'';
-      return '<div class="sl-card" style="background:'+th.bg+'">'
-        +'<div class="sl-hd" style="background:'+th.ac+'">'
-        +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem">'+escHtml(slide.title||'')+'</span>'
-        +'<span style="opacity:.6;font-size:.65rem;flex-shrink:0;margin-left:6px">'+(idx+1)+'/'+ST.pptData.slides.length+'</span>'
-        +'</div>'
-        +'<div style="display:flex;gap:8px;padding:8px 14px;align-items:flex-start">'
-        +'<div class="sl-bd" style="flex:1"><ul>'+(slide.content||[]).slice(0,3).map(function(ct){return '<li>'+escHtml(ct)+'</li>'}).join('')+'</ul></div>'
-        +imgEl+'</div></div>';
-    }).join('');
-
+    // Use theme from AI or user selection
+    var aiTheme=ST.pptData.theme&&THEMES[ST.pptData.theme]?ST.pptData.theme:style;
+    ST.lastStyle=aiTheme;
+    renderPPTPreview(ST.pptData,aiTheme);
     setEl('pp-res-t',ST.pptData.title||topic);
-    setEl('pp-res-m',ST.pptData.slides.length+'张幻灯片 · 含'+imgs.filter(Boolean).length+'张AI配图 · '+new Date().toLocaleDateString('zh-CN'));
+    setEl('pp-res-m',ST.pptData.slides.length+'页 · '+THEMES[aiTheme].nm+' · '+new Date().toLocaleDateString('zh-CN'));
     if(ppLd)ppLd.style.display='none';
     if(ppRes)ppRes.style.display='block';
-    addUse();toast('PPT生成完成！Gemini AI 专业配图','ok',4000);
-    autoSave('ppt',topic,{pptData:ST.pptData,style:ST.lastStyle,imgs:imgs});
+    addUse();
+    toast('PPT生成完成！顶级专业设计','ok',4000);
+    autoSave('ppt',topic,{pptData:ST.pptData,style:aiTheme});
   }).catch(function(err){
     clearInterval(timer);
     if(ppLd)ppLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center">'
       +'<div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div>'
       +'<div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div>'
+      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：模型未覆盖地区，正在切换备用模型...</div>'
       +'</div>';
-    toast('生成失败','er');
+    toast('生成失败：'+err.message,'er',6000);
   }).then(function(){
     if(genBtn)genBtn.disabled=false;
   });
 }
 
+function renderPPTPreview(data,style){
+  var th=THEMES[style]||THEMES.navy;
+  var el=g('pp-preview');if(!el)return;
+  el.innerHTML=data.slides.map(function(slide,idx){
+    var typeLabel={cover:'封面',section:'章节',content:'内容',stats:'数据',quote:'引言',comparison:'对比',timeline:'时间轴',end:'结尾'}[slide.type]||slide.type;
+    var icon={cover:'🎯',section:'📌',content:'📋',stats:'📊',quote:'💬',comparison:'⚖️',timeline:'📅',end:'🙏'}[slide.type]||'📄';
+    var preview='';
+    if(slide.type==='stats'&&slide.stats){
+      preview='<div style="display:flex;gap:6px;margin-top:6px">'
+        +slide.stats.map(function(s){return '<div style="background:rgba(255,255,255,.12);border-radius:6px;padding:4px 8px;text-align:center;flex:1"><div style="font-size:.9rem;font-weight:700">'+escHtml(s.val+s.unit)+'</div><div style="font-size:.6rem;opacity:.7">'+escHtml(s.label)+'</div></div>'}).join('')
+        +'</div>';
+    } else if(slide.type==='timeline'&&slide.events){
+      preview='<div style="font-size:.7rem;opacity:.8;margin-top:4px">'+slide.events.slice(0,3).map(function(e){return escHtml(e.time+' '+e.event)}).join(' → ')+'</div>';
+    } else if(slide.bullets){
+      preview='<ul style="list-style:none;margin-top:4px">'+slide.bullets.slice(0,3).map(function(b){return '<li style="font-size:.7rem;opacity:.85;padding:1px 0">▸ '+escHtml(b)+'</li>'}).join('')+'</ul>';
+    } else if(slide.type==='quote'){
+      preview='<div style="font-size:.72rem;opacity:.85;font-style:italic;margin-top:4px">"'+escHtml((slide.quote||'').slice(0,60))+'..."</div>';
+    }
+    return '<div class="sl-card" style="background:'+th.bg+';border:1px solid rgba(255,255,255,.15)">'
+      +'<div class="sl-hd" style="background:rgba(0,0,0,.25)">'
+      +'<span style="font-size:.65rem;opacity:.7">'+icon+' '+typeLabel+'</span>'
+      +'<span style="font-size:.65rem;opacity:.5">'+(idx+1)+'/'+data.slides.length+'</span>'
+      +'</div>'
+      +'<div style="padding:8px 12px">'
+      +'<div style="font-size:.8rem;font-weight:700;color:#fff;margin-bottom:2px">'+escHtml(slide.title||slide.quote||'')+'</div>'
+      +preview
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
 
-// ── PPTX BUILDER ─────────────────────────────────────────────────────
-function buildAndDownloadPPTX(pptData,style,imgs,filename){
+function buildPPTX(pptData,style){
   return new Promise(function(resolve,reject){
     try{
-      var th=THEMES[style]||THEMES.business;
+      var th=THEMES[style]||THEMES.navy;
       var pres=new PptxGenJS();
       pres.layout='LAYOUT_16x9';
       pres.author='晴天AI文档魔法师';
       pres.title=pptData.title||'演示文稿';
-      var bg=th.bg.replace('#','');var ac=th.ac.replace('#','');
+      var bg=th.bg.replace('#','');
+      var ac=th.ac.replace('#','');
+      var lt=th.lt.replace('#','');
 
       pptData.slides.forEach(function(slide,idx){
         var sld=pres.addSlide();
-        var img=(imgs&&imgs[idx])?imgs[idx]:null;
+        var type=slide.type||'content';
 
-        if(slide.type==='title'){
-          if(img){
-            sld.addImage({data:'image/jpeg;base64,'+img,x:0,y:0,w:'100%',h:'100%'});
-            sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'000000',transparency:45}});
-          }else{
-            sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
-          }
-          sld.addShape(pres.ShapeType.rect,{x:0,y:5.425,w:'100%',h:0.2,fill:{color:ac}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.12,h:'100%',fill:{color:ac}});
-          sld.addText(pptData.title||slide.title||'',{x:0.5,y:1.0,w:9,h:2.2,fontSize:36,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑'});
-          if(pptData.subtitle)sld.addText(pptData.subtitle,{x:0.5,y:3.3,w:9,h:0.85,fontSize:20,
-            color:'DDDDDD',align:'center',fontFace:'微软雅黑'});
-          sld.addShape(pres.ShapeType.rect,{x:3.5,y:4.25,w:3,h:0.04,fill:{color:ac}});
-          sld.addText(pptData.author||'晴天AI制作',{x:0.5,y:4.6,w:9,h:0.5,fontSize:12,
-            color:'AAAAAA',align:'center',fontFace:'微软雅黑'});
-        }
-        else if(slide.type==='end'){
-          if(img){
-            sld.addImage({data:'image/jpeg;base64,'+img,x:0,y:0,w:'100%',h:'100%'});
-            sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:ac,transparency:40}});
-          }else{
-            sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:ac}});
-          }
-          sld.addText(slide.title||'感谢观看',{x:0.5,y:1.5,w:9,h:2.2,fontSize:44,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑'});
-          sld.addShape(pres.ShapeType.rect,{x:3.5,y:3.5,w:3,h:0.06,fill:{color:'FFFFFF',transparency:50}});
-          sld.addText('THANK YOU',{x:0.5,y:3.65,w:9,h:0.9,fontSize:22,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑'});
-        }
-        else{
+        if(type==='cover'){
+          // ── COVER: full-bleed gradient + geometric accents ──
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.05,fill:{color:ac}});
-          sld.addText(slide.title||'',{x:0.3,y:0.1,w:7.8,h:0.85,fontSize:20,bold:true,
-            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'});
-          sld.addShape(pres.ShapeType.rect,{x:8.65,y:0.18,w:0.85,h:0.65,
-            fill:{color:'FFFFFF',transparency:80}});
-          sld.addText((idx+1)+'/'+pptData.slides.length,{x:8.65,y:0.18,w:0.85,h:0.65,
-            fontSize:11,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
-          if(img){
-            sld.addImage({data:'image/jpeg;base64,'+img,x:6.05,y:1.15,w:3.7,h:4.25});
-            sld.addShape(pres.ShapeType.rect,{x:6.05,y:1.15,w:3.7,h:4.25,
-              fill:{type:'none'},line:{color:ac,width:1.5}});
-            sld.addShape(pres.ShapeType.rect,{x:6.05,y:5.15,w:3.7,h:0.25,fill:{color:ac,transparency:30}});
-          }
-          var contentW=img?5.5:9.4;
-          var items=slide.content||[];
-          var lineH=Math.min(img?0.82:0.9,4.1/Math.max(items.length,1));
-          items.forEach(function(item,ii){
-            var y=1.25+ii*lineH;if(y>5.2)return;
-            sld.addShape(pres.ShapeType.rect,{x:0.28,y:y+(lineH/2)-0.07,w:0.18,h:0.14,fill:{color:ac}});
-            sld.addText(item,{x:0.57,y:y,w:contentW-0.2,h:lineH,
-              fontSize:img?14:15,color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'});
+          // Large decorative circle top-right
+          sld.addShape(pres.ShapeType.ellipse,{x:7.2,y:-1.5,w:4.5,h:4.5,fill:{color:ac,transparency:80}});
+          sld.addShape(pres.ShapeType.ellipse,{x:8.0,y:-0.8,w:3.0,h:3.0,fill:{color:ac,transparency:70}});
+          // Bottom left accent block
+          sld.addShape(pres.ShapeType.rect,{x:0,y:5.8,w:2.5,h:1.7,fill:{color:ac,transparency:75}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:6.2,w:1.5,h:1.3,fill:{color:ac,transparency:60}});
+          // Left accent bar
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.18,h:'100%',fill:{color:ac}});
+          // Main title
+          sld.addText(pptData.title||slide.title||'',{
+            x:0.5,y:1.2,w:8.5,h:2.5,fontSize:40,bold:true,color:'FFFFFF',
+            align:'left',fontFace:'微软雅黑',
+            shadow:{type:'outer',blur:12,offset:3,angle:315,color:'000000',opacity:0.4}
           });
-          sld.addShape(pres.ShapeType.rect,{x:0,y:5.525,w:img?6.05:10,h:0.1,fill:{color:ac,transparency:30}});
-          if(slide.notes)sld.addNotes(slide.notes);
+          // Accent divider
+          sld.addShape(pres.ShapeType.rect,{x:0.5,y:3.7,w:4.0,h:0.06,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0.5,y:3.7,w:0.5,h:0.06,fill:{color:'FFFFFF'}});
+          // Subtitle
+          sld.addText(pptData.subtitle||slide.subtitle||'',{
+            x:0.5,y:3.9,w:8.5,h:0.9,fontSize:20,color:'CCCCCC',
+            align:'left',fontFace:'微软雅黑',bold:false
+          });
+          // Author & date bottom
+          var today=new Date().toLocaleDateString('zh-CN');
+          sld.addText((pptData.author||'晴天AI制作')+'  |  '+today,{
+            x:0.5,y:6.4,w:9,h:0.4,fontSize:11,color:'999999',
+            align:'left',fontFace:'微软雅黑'
+          });
         }
+
+        else if(type==='section'){
+          // ── SECTION DIVIDER: half-split design ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'F8F8F8'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:4.8,h:'100%',fill:{color:bg}});
+          // Diagonal accent
+          sld.addShape(pres.ShapeType.rect,{x:4.5,y:0,w:0.6,h:'100%',fill:{color:ac,transparency:40}});
+          // Section number (large, decorative)
+          var num=String(slide.sectionNum||((idx+1)));
+          sld.addText('0'+num,{
+            x:0.3,y:0.6,w:4,h:3.0,fontSize:96,bold:true,
+            color:ac,align:'center',fontFace:'微软雅黑',transparency:30
+          });
+          // Section title
+          sld.addText(slide.title||'',{
+            x:0.3,y:3.0,w:4.2,h:1.4,fontSize:28,bold:true,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑'
+          });
+          // Left bottom accent line
+          sld.addShape(pres.ShapeType.rect,{x:0.6,y:4.6,w:3.2,h:0.06,fill:{color:ac}});
+          // Right: description text
+          sld.addText(slide.desc||slide.subtitle||'',{
+            x:5.4,y:2.2,w:4.2,h:3.0,fontSize:18,
+            color:'333333',align:'left',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Right top accent
+          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.8,w:0.6,h:0.08,fill:{color:bg}});
+        }
+
+        else if(type==='stats'){
+          // ── STATS: clean white with large KPI boxes ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          // Top header
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.4,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.35,w:'100%',h:0.08,fill:{color:ac}});
+          sld.addText(slide.title||'数据洞察',{
+            x:0.4,y:0.15,w:9.2,h:1.1,fontSize:24,bold:true,
+            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Stat boxes
+          var stats=slide.stats||[];
+          var boxW=Math.min(3.0,9.0/Math.max(stats.length,1));
+          var boxX=0.5+(9.0-boxW*stats.length-0.3*(stats.length-1))/2;
+          stats.forEach(function(stat,i){
+            var x=boxX+i*(boxW+0.3);
+            // Shadow box
+            sld.addShape(pres.ShapeType.rect,{
+              x:x,y:1.8,w:boxW,h:4.2,
+              fill:{color:'F9F9F9'},
+              line:{color:'EEEEEE',width:1}
+            });
+            // Top color accent
+            sld.addShape(pres.ShapeType.rect,{x:x,y:1.8,w:boxW,h:0.18,fill:{color:ac}});
+            // Large value
+            sld.addText(stat.val||'',{
+              x:x,y:2.4,w:boxW,h:1.8,fontSize:52,bold:true,
+              color:bg,align:'center',fontFace:'微软雅黑'
+            });
+            // Unit
+            if(stat.unit)sld.addText(stat.unit,{
+              x:x,y:3.9,w:boxW,h:0.6,fontSize:18,
+              color:ac,align:'center',fontFace:'微软雅黑',bold:true
+            });
+            // Label
+            sld.addText(stat.label||'',{
+              x:x+0.1,y:4.7,w:boxW-0.2,h:1.1,fontSize:14,
+              color:'555555',align:'center',fontFace:'微软雅黑'
+            });
+          });
+          // Footer
+          sld.addText((slide.note||'')+'  |  晴天AI制作',{
+            x:0,y:6.8,w:'100%',h:0.3,fontSize:9,color:'AAAAAA',align:'center',fontFace:'微软雅黑'
+          });
+        }
+
+        else if(type==='quote'){
+          // ── QUOTE: full gradient with large quote ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
+          // Decorative circles
+          sld.addShape(pres.ShapeType.ellipse,{x:-0.5,y:4.5,w:3,h:3,fill:{color:ac,transparency:80}});
+          sld.addShape(pres.ShapeType.ellipse,{x:8.5,y:-0.5,w:2.5,h:2.5,fill:{color:'FFFFFF',transparency:88}});
+          // Large quote mark
+          sld.addText('“',{
+            x:0.5,y:0.2,w:3,h:2.5,fontSize:120,bold:true,
+            color:ac,fontFace:'Georgia',transparency:40
+          });
+          // Quote text
+          sld.addText(slide.quote||'',{
+            x:0.8,y:1.4,w:8.4,h:3.2,fontSize:24,bold:false,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑',
+            italic:true,valign:'middle'
+          });
+          // Divider
+          sld.addShape(pres.ShapeType.rect,{x:4,y:5.0,w:2,h:0.05,fill:{color:ac}});
+          // Source
+          sld.addText('— '+(slide.source||''),{
+            x:0,y:5.2,w:'100%',h:0.6,fontSize:14,
+            color:'BBBBBB',align:'center',fontFace:'微软雅黑'
+          });
+        }
+
+        else if(type==='comparison'){
+          // ── COMPARISON: two-column with VS divider ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.3,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.25,w:'100%',h:0.08,fill:{color:ac}});
+          sld.addText(slide.title||'对比分析',{
+            x:0.4,y:0.1,w:9.2,h:1.1,fontSize:24,bold:true,
+            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Left panel
+          sld.addShape(pres.ShapeType.rect,{x:0.3,y:1.5,w:4.3,h:5.5,fill:{color:bg,transparency:88},line:{color:ac,width:1.5}});
+          sld.addShape(pres.ShapeType.rect,{x:0.3,y:1.5,w:4.3,h:0.6,fill:{color:bg}});
+          sld.addText(slide.leftTitle||'方案 A',{
+            x:0.3,y:1.5,w:4.3,h:0.6,fontSize:16,bold:true,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
+          });
+          (slide.leftPoints||[]).forEach(function(p,i){
+            sld.addShape(pres.ShapeType.ellipse,{x:0.55,y:2.35+i*0.82,w:0.18,h:0.18,fill:{color:ac}});
+            sld.addText(p,{x:0.85,y:2.25+i*0.82,w:3.6,h:0.7,fontSize:13,color:'222222',fontFace:'微软雅黑',valign:'middle'});
+          });
+          // VS divider
+          sld.addShape(pres.ShapeType.ellipse,{x:4.65,y:3.4,w:0.7,h:0.7,fill:{color:ac}});
+          sld.addText('VS',{x:4.65,y:3.4,w:0.7,h:0.7,fontSize:11,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
+          // Right panel
+          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.5,w:4.3,h:5.5,fill:{color:bg,transparency:88},line:{color:'E63946',width:1.5}});
+          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.5,w:4.3,h:0.6,fill:{color:'991B1B'}});
+          sld.addText(slide.rightTitle||'方案 B',{
+            x:5.4,y:1.5,w:4.3,h:0.6,fontSize:16,bold:true,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
+          });
+          (slide.rightPoints||[]).forEach(function(p,i){
+            sld.addShape(pres.ShapeType.ellipse,{x:5.62,y:2.35+i*0.82,w:0.18,h:0.18,fill:{color:'E63946'}});
+            sld.addText(p,{x:5.9,y:2.25+i*0.82,w:3.6,h:0.7,fontSize:13,color:'222222',fontFace:'微软雅黑',valign:'middle'});
+          });
+        }
+
+        else if(type==='timeline'){
+          // ── TIMELINE: horizontal with nodes ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.3,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.25,w:'100%',h:0.08,fill:{color:ac}});
+          sld.addText(slide.title||'发展历程',{
+            x:0.4,y:0.1,w:9.2,h:1.1,fontSize:24,bold:true,
+            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Timeline line
+          sld.addShape(pres.ShapeType.rect,{x:0.6,y:4.0,w:8.8,h:0.06,fill:{color:'DDDDDD'}});
+          var events=slide.events||[];
+          var evtCount=Math.min(events.length,5);
+          var spacing=8.8/(Math.max(evtCount-1,1));
+          events.slice(0,5).forEach(function(evt,i){
+            var x=0.6+i*spacing;
+            // Node circle
+            sld.addShape(pres.ShapeType.ellipse,{x:x-0.2,y:3.77,w:0.4,h:0.4,fill:{color:ac},line:{color:'FFFFFF',width:2}});
+            // Date (above line)
+            sld.addText(evt.time||'',{
+              x:x-0.8,y:2.8,w:1.6,h:0.7,fontSize:13,bold:true,
+              color:bg,align:'center',fontFace:'微软雅黑'
+            });
+            // Connector line up
+            sld.addShape(pres.ShapeType.rect,{x:x-0.02,y:3.4,w:0.04,h:0.4,fill:{color:ac,transparency:50}});
+            // Event desc (below line)
+            sld.addText(evt.event||'',{
+              x:x-0.9,y:4.25,w:1.8,h:1.5,fontSize:12,
+              color:'444444',align:'center',fontFace:'微软雅黑',valign:'top'
+            });
+          });
+        }
+
+        else if(type==='end'){
+          // ── END: full gradient + decorative ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
+          sld.addShape(pres.ShapeType.ellipse,{x:6.5,y:4.5,w:5,h:5,fill:{color:ac,transparency:82}});
+          sld.addShape(pres.ShapeType.ellipse,{x:-1,y:-1,w:4,h:4,fill:{color:'FFFFFF',transparency:90}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.18,h:'100%',fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:9.82,y:0,w:0.18,h:'100%',fill:{color:ac,transparency:60}});
+          sld.addText(slide.title||'感谢聆听',{
+            x:0.5,y:1.5,w:9,h:2.5,fontSize:48,bold:true,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑',
+            shadow:{type:'outer',blur:10,offset:3,angle:315,color:'000000',opacity:0.35}
+          });
+          sld.addShape(pres.ShapeType.rect,{x:3.5,y:4.0,w:3,h:0.07,fill:{color:ac}});
+          if(slide.contact){
+            sld.addText(slide.contact,{
+              x:0.5,y:4.3,w:9,h:0.8,fontSize:16,
+              color:'CCCCCC',align:'center',fontFace:'微软雅黑'
+            });
+          }
+          sld.addText('Powered by 晴天AI · pdf.zenithsmart.xin',{
+            x:0,y:6.6,w:'100%',h:0.4,fontSize:10,
+            color:'777777',align:'center',fontFace:'微软雅黑'
+          });
+        }
+
+        else{
+          // ── CONTENT: professional white layout ──
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          // Header
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.35,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.3,w:'100%',h:0.08,fill:{color:ac}});
+          // Left accent bar
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.38,w:0.1,h:6.12,fill:{color:ac,transparency:70}});
+          // Slide number badge
+          sld.addShape(pres.ShapeType.rect,{x:8.7,y:0.2,w:1.0,h:0.7,fill:{color:ac,transparency:40}});
+          sld.addText((idx+1)+'/'+pptData.slides.length,{
+            x:8.7,y:0.2,w:1.0,h:0.7,fontSize:12,
+            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Title
+          sld.addText(slide.title||'',{
+            x:0.3,y:0.1,w:8.3,h:1.1,fontSize:22,bold:true,
+            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
+          });
+          // Bullet points with custom design
+          var bullets=slide.bullets||slide.content||[];
+          var bH=Math.min(0.95,(5.5/Math.max(bullets.length,1)));
+          bullets.forEach(function(b,i){
+            var y=1.65+i*bH;
+            // Numbered circle
+            sld.addShape(pres.ShapeType.ellipse,{
+              x:0.25,y:y+(bH/2-0.22),w:0.44,h:0.44,fill:{color:ac}
+            });
+            sld.addText(String(i+1),{
+              x:0.25,y:y+(bH/2-0.22),w:0.44,h:0.44,fontSize:13,bold:true,
+              color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
+            });
+            // Bullet text (left half) - check if long (use full width)
+            sld.addText(b,{
+              x:0.85,y:y,w:8.85,h:bH,fontSize:bH>0.8?15:14,
+              color:'222222',align:'left',fontFace:'微软雅黑',valign:'middle'
+            });
+            // Light separator
+            if(i<bullets.length-1){
+              sld.addShape(pres.ShapeType.rect,{x:0.85,y:y+bH-0.02,w:8.85,h:0.01,fill:{color:'EEEEEE'}});
+            }
+          });
+          // Right decorative accent (background shape)
+          sld.addShape(pres.ShapeType.ellipse,{x:8.5,y:5.0,w:2.0,h:2.0,fill:{color:ac,transparency:90}});
+          // Bottom bar
+          sld.addShape(pres.ShapeType.rect,{x:0,y:6.9,w:'100%',h:0.1,fill:{color:ac,transparency:60}});
+          // Notes
+          if(slide.note)sld.addNotes(slide.note);
+        }
+
+        // Watermark for guests
         if(ST.isGuest){
-          sld.addText('晴天AI · 游客试用版 · 购买激活码可去除水印',{
-            x:0,y:5.4,w:'100%',h:0.225,fontSize:8,color:'AAAAAA',align:'center',fontFace:'微软雅黑'});
+          sld.addText('晴天AI · 游客试用版',{
+            x:0,y:6.65,w:'100%',h:0.25,fontSize:8,
+            color:'AAAAAA',align:'center',fontFace:'微软雅黑',transparency:30
+          });
         }
       });
 
-      pres.writeFile({fileName:(filename||pptData.title||'演示文稿')+'.pptx'})
+      pres.writeFile({fileName:(pptData.title||'演示文稿')+'.pptx'})
         .then(function(){resolve()}).catch(function(e){reject(e)});
     }catch(be){reject(be)}
   });
@@ -1541,10 +1674,8 @@ function dlPPT(){
   if(!ST.pptData){toast('请先生成PPT','er');return}
   vib(10);
   var btn=document.querySelector('#pp-res .btn-dl');
-  if(btn){btn.textContent='⏳ 重新加载配图...';btn.disabled=true}
-  fetchAllImages(ST.pptData.slides,null).then(function(imgs){
-    return buildAndDownloadPPTX(ST.pptData,ST.lastStyle||'business',imgs);
-  }).then(function(){
+  if(btn){btn.textContent='⏳ 渲染顶级PPT...';btn.disabled=true}
+  buildPPTX(ST.pptData,ST.lastStyle||'navy').then(function(){
     toast('PPTX下载成功！','ok');
   }).catch(function(e){
     toast('下载失败：'+e.message,'er');
@@ -1552,21 +1683,19 @@ function dlPPT(){
     if(btn){btn.textContent='⬇️ 下载 PPTX 文件';btn.disabled=false}
   });
 }
-
 function copyPPT(){
   if(!ST.pptData)return;
   var lines=[ST.pptData.title];
   ST.pptData.slides.forEach(function(s,i){
-    lines.push('【第'+(i+1)+'页】'+s.title);
-    (s.content||[]).forEach(function(ct){lines.push('• '+ct)});
+    lines.push('【'+(i+1)+'】'+s.title);
+    (s.bullets||s.content||[]).forEach(function(b){lines.push('  • '+b)});
+    if(s.stats)(s.stats).forEach(function(st){lines.push('  '+st.val+st.unit+' '+st.label)});
     lines.push('');
   });
-  navigator.clipboard&&navigator.clipboard.writeText(lines.join('\n')).then(function(){toast('已复制到剪贴板','ok')});
+  navigator.clipboard&&navigator.clipboard.writeText(lines.join('\n')).then(function(){toast('已复制','ok')});
 }
-function reSavePPT(){if(!ST.pptData)return;autoSave('ppt',g('pp-topic').value.trim()||ST.pptData.title,{pptData:ST.pptData,style:ST.lastStyle||'business'});toast('已保存','ok')}
+function reSavePPT(){if(!ST.pptData)return;autoSave('ppt',g('pp-topic').value.trim()||ST.pptData.title,{pptData:ST.pptData,style:ST.lastStyle||'navy'});toast('已保存','ok')}
 
-
-// ── PDF GENERATOR ────────────────────────────────────────────────────
 function genPDF(){
   if(!checkUse())return;
   var topic=g('pf-topic').value.trim();if(!topic){toast('请输入文档主题','er');return}
@@ -1580,23 +1709,22 @@ function genPDF(){
   var pfRes=g('pf-res');if(pfRes)pfRes.style.display='none';
   var steps=['🤖 构思文档框架...','📝 撰写正文内容...','✍️ 优化语言表达...','🎨 整理排版格式...'];
   var si=0;var timer=setInterval(function(){try{setEl('pf-step',steps[si%steps.length]);si++}catch(e){}},2000);
-  var lmap={short:'约600字，简洁明了',medium:'约1500字，结构完整',long:'约3000字，详细全面'};
+  var lmap={short:'约600字',medium:'约1500字',long:'约3000字'};
   var tmap={report:'工作报告',proposal:'项目方案',analysis:'分析报告',plan:'计划书',manual:'操作手册',summary:'年终总结'};
   var today=new Date().toLocaleDateString('zh-CN');
-  var ptNote=pts?(' 关键要点：'+pts):'';
-  var pdfPromptParts=[
+  var ptNote=pts?(' 关键要点参考：'+pts):'';
+  var pArr=[
     '撰写专业'+(tmap[type]||'文档')+'，主题："'+topic+'"。',
-    ptNote,
-    ' 要求：'+(lmap[len]||lmap.medium)+'，层次清晰，语言专业。',
-    ' 输出HTML（从<article>标签开始）：',
-    '<article style="font-family:Noto Sans SC,serif;max-width:720px;margin:0 auto;padding:28px;color:#111827;line-height:1.9;font-size:14px">',
-    '<h1 style="text-align:center;font-size:20px;color:#7C3AED;margin-bottom:6px">文档标题</h1>',
-    '<p style="text-align:center;font-size:11px;color:#9CA3AF;margin-bottom:28px">'+today+' | 晴天AI制作</p>',
-    '<h2 style="font-size:15px;color:#5B21B6;border-left:3px solid #FF6B9D;padding-left:10px;margin:20px 0 8px">章节</h2>',
-    '<p>内容</p></article>'
+    ptNote,' 要求：'+(lmap[len]||lmap.medium)+'，层次清晰，语言专业权威。',
+    ' 输出HTML（从<article>开始）：',
+    '<article style="font-family:PingFang SC,Microsoft YaHei,sans-serif;max-width:720px;margin:0 auto;padding:32px;color:#111;line-height:1.9;font-size:14px">',
+    '<h1 style="text-align:center;font-size:22px;color:#1B3A6B;margin-bottom:6px;font-weight:700">标题</h1>',
+    '<p style="text-align:center;font-size:11px;color:#9CA3AF;margin-bottom:32px;border-bottom:2px solid #1B3A6B;padding-bottom:12px">'+today+' | 晴天AI专业文档</p>',
+    '<h2 style="font-size:16px;color:#1B3A6B;border-left:4px solid #4DA6FF;padding-left:12px;margin:24px 0 10px;font-weight:700">章节</h2>',
+    '<p style="margin-bottom:14px;text-indent:2em">内容</p>',
+    '</article>'
   ];
-
-  callAI(pdfPromptParts.join(''),'你是顶级文案专家，输出规范HTML文档，内容专业，只输出HTML').then(function(html){
+  callAI(pArr.join(''),'你是顶级文案专家，输出规范HTML文档，内容专业翔实，只输出HTML。').then(function(html){
     clearInterval(timer);
     var content=html.replace(/```html|```/g,'').trim();
     var si2=content.indexOf('<article');var ei=content.lastIndexOf('</article>')+10;
@@ -1610,9 +1738,7 @@ function genPDF(){
     clearInterval(timer);
     if(pfLd)pfLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center"><div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div><div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div></div>';
     toast('生成失败','er');
-  }).then(function(){
-    if(genBtn)genBtn.disabled=false;
-  });
+  }).then(function(){if(genBtn)genBtn.disabled=false});
 }
 
 function canvasToPDF(canvas,filename){
@@ -1622,14 +1748,14 @@ function canvasToPDF(canvas,filename){
       if(!JsPDF){reject(new Error('PDF库未加载，请刷新重试'));return}
       var pdf=new JsPDF('p','mm','a4');
       var pw=pdf.internal.pageSize.getWidth();var ph=pdf.internal.pageSize.getHeight();
-      var iw=pw;var ih=(canvas.height*iw)/canvas.width;
-      var pxPerPage=canvas.height*ph/ih;var page=0;
-      while(page*pxPerPage<canvas.height){
+      var ih=(canvas.height*pw)/canvas.width;
+      var pxPP=canvas.height*ph/ih;var page=0;
+      while(page*pxPP<canvas.height){
         if(page>0)pdf.addPage();
-        var rowH=Math.min(pxPerPage,canvas.height-page*pxPerPage);
-        var c2=document.createElement('canvas');c2.width=canvas.width;c2.height=Math.ceil(rowH);
-        c2.getContext('2d').drawImage(canvas,0,page*pxPerPage,canvas.width,rowH,0,0,canvas.width,rowH);
-        pdf.addImage(c2.toDataURL('image/jpeg',.92),'JPEG',0,0,pw,rowH*pw/canvas.width);
+        var rH=Math.min(pxPP,canvas.height-page*pxPP);
+        var c2=document.createElement('canvas');c2.width=canvas.width;c2.height=Math.ceil(rH);
+        c2.getContext('2d').drawImage(canvas,0,page*pxPP,canvas.width,rH,0,0,canvas.width,rH);
+        pdf.addImage(c2.toDataURL('image/jpeg',.92),'JPEG',0,0,pw,rH*pw/canvas.width);
         page++;
       }
       pdf.save(filename);resolve();
@@ -1642,30 +1768,20 @@ function dlPDF(){
   vib(10);
   var btn=document.querySelector('#pf-res .btn-dl');
   if(btn){btn.textContent='⏳ 生成中...';btn.disabled=true}
-  var el=g('pf-prev');
-  html2canvas(el,{scale:2,useCORS:true,logging:false,backgroundColor:'#ffffff'}).then(function(canvas){
-    return canvasToPDF(canvas,(g('pf-topic').value.trim()||'文档')+'.pdf');
-  }).then(function(){toast('PDF下载成功！','ok')}).catch(function(e){toast('PDF生成失败：'+e.message,'er')}).then(function(){
+  html2canvas(g('pf-prev'),{scale:2,useCORS:true,logging:false,backgroundColor:'#ffffff'}).then(function(cv){
+    return canvasToPDF(cv,(g('pf-topic').value.trim()||'文档')+'.pdf');
+  }).then(function(){toast('PDF下载成功！','ok')}).catch(function(e){toast('下载失败：'+e.message,'er')}).then(function(){
     if(btn){btn.textContent='⬇️ 下载 PDF 文件';btn.disabled=false}
   });
 }
-
-function copyPDF(){
-  if(!ST.pdfTxt)return;
-  navigator.clipboard&&navigator.clipboard.writeText(ST.pdfTxt).then(function(){toast('已复制','ok')});
-}
+function copyPDF(){if(!ST.pdfTxt)return;navigator.clipboard&&navigator.clipboard.writeText(ST.pdfTxt).then(function(){toast('已复制','ok')})}
 function reSavePDF(){if(!ST.pdfHtml)return;autoSave('pdf',g('pf-topic').value.trim()||'文档',{html:ST.pdfHtml});toast('已保存','ok')}
 
-
-// ── RESUME ───────────────────────────────────────────────────────────
 function addExp(listId,type){
   var list=g(listId);if(!list)return;
   var div=document.createElement('div');div.className='exp-item';
-  if(type==='work'){
-    div.innerHTML='<button class="exp-del" onclick="this.parentElement.remove()">✕</button><div class="g2"><input class="inp si" data-f="co" type="text" placeholder="公司名称"><input class="inp si" data-f="ti" type="text" placeholder="职位"></div><input class="inp si" data-f="pe" type="text" placeholder="时间段" style="width:100%;margin-bottom:8px"><textarea class="inp si" data-f="de" placeholder="职责与成就..." style="width:100%;min-height:65px"></textarea>';
-  }else{
-    div.innerHTML='<button class="exp-del" onclick="this.parentElement.remove()">✕</button><div class="g2"><input class="inp si" data-f="sc" type="text" placeholder="学校名称"><input class="inp si" data-f="ma" type="text" placeholder="专业"></div><div class="g2"><input class="inp si" data-f="de" type="text" placeholder="学历"><input class="inp si" data-f="pe" type="text" placeholder="时间段"></div>';
-  }
+  if(type==='work'){div.innerHTML='<button class="exp-del" onclick="this.parentElement.remove()">✕</button><div class="g2"><input class="inp si" data-f="co" type="text" placeholder="公司名称"><input class="inp si" data-f="ti" type="text" placeholder="职位"></div><input class="inp si" data-f="pe" type="text" placeholder="时间段" style="width:100%;margin-bottom:8px"><textarea class="inp si" data-f="de" placeholder="职责与成就..." style="width:100%;min-height:65px"></textarea>'}
+  else{div.innerHTML='<button class="exp-del" onclick="this.parentElement.remove()">✕</button><div class="g2"><input class="inp si" data-f="sc" type="text" placeholder="学校名称"><input class="inp si" data-f="ma" type="text" placeholder="专业"></div><div class="g2"><input class="inp si" data-f="de" type="text" placeholder="学历"><input class="inp si" data-f="pe" type="text" placeholder="时间段"></div>'}
   list.appendChild(div);
 }
 function addSkill(e){
@@ -1685,7 +1801,6 @@ function renderSkills(){
   });
   wrap.appendChild(inp);
 }
-
 function genResume(){
   if(!checkUse())return;
   var name=g('rv-name').value.trim();var pos=g('rv-pos').value.trim();
@@ -1712,17 +1827,19 @@ function genResume(){
   var rvRes=g('rv-res');if(rvRes)rvRes.style.display='none';
   var steps=['🤖 分析经历背景...','✍️ 优化个人简介...','🎨 生成专业版式...'];
   var si=0;var timer=setInterval(function(){try{setEl('rv-step',steps[si%steps.length]);si++}catch(e){}},2000);
-  var scMap={modern:{h:'#7C3AED',a:'#FF6B9D'},classic:{h:'#1B3A6B',a:'#4A90D9'},creative:{h:'#065F46',a:'#10B981'}};
+  var scMap={modern:{h:'#1B3A6B',a:'#4DA6FF'},classic:{h:'#1E293B',a:'#F0A500'},creative:{h:'#134E4A',a:'#2DD4BF'}};
   var sc=scMap[style]||scMap.modern;
-  var rvPrompt='生成专业简历。姓名:'+name+'，职位:'+pos+'，电话:'+(tel||'未填')+
+  var pArr=[
+    '生成专业简历。姓名:'+name+'，职位:'+pos+'，电话:'+(tel||'未填')+
     '，邮箱:'+(mail||'未填')+'，城市:'+(city||'未填')+'，学历:'+(edu||'未填')+
-    '。简介:'+(sum||'请生成简介')+
+    '。简介:'+(sum||'请根据经历生成简介')+
     '。工作经历:'+JSON.stringify(exps)+
     '。教育:'+JSON.stringify(edusList)+
     '。技能:'+(skills.length?skills.join(','):'请推荐技能')+
-    '。要求：优化简介，突出成果，输出完整A4简历HTML（只从<div>开始），主色'+sc.h+'，强调色'+sc.a+'。只输出HTML：';
-
-  callAI(rvPrompt,'你是顶级HR专家，输出规范简历HTML，排版精美').then(function(html){
+    '。要求：优化简介突出核心价值，量化成果，输出完整A4简历HTML（只从<div>开始）。',
+    '主色'+sc.h+'，强调色'+sc.a+'，排版专业精美参考顶级猎头简历风格。只输出HTML。'
+  ];
+  callAI(pArr.join(''),'你是顶级HR专家，输出规范简历HTML，排版精美').then(function(html){
     clearInterval(timer);
     var content=html.replace(/```html|```/g,'').trim();
     var si2=content.indexOf('<div');var ei=content.lastIndexOf('</div>')+6;
@@ -1736,19 +1853,15 @@ function genResume(){
     clearInterval(timer);
     if(rvLd)rvLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center"><div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div><div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div></div>';
     toast('生成失败','er');
-  }).then(function(){
-    if(rvGen)rvGen.disabled=false;
-  });
+  }).then(function(){if(rvGen)rvGen.disabled=false});
 }
-
 function dlResume(){
   if(!ST.rvHtml){toast('请先生成简历','er');return}
   vib(10);
   var btn=document.querySelector('#rv-res .btn-dl');
   if(btn){btn.textContent='⏳ 生成中...';btn.disabled=true}
-  var el=g('rv-prev');
-  html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
-    return canvasToPDF(canvas,(g('rv-name').value.trim()||'简历')+'_AI简历.pdf');
+  html2canvas(g('rv-prev'),{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(cv){
+    return canvasToPDF(cv,(g('rv-name').value.trim()||'简历')+'_AI简历.pdf');
   }).then(function(){toast('简历下载成功！','ok')}).catch(function(e){toast('下载失败：'+e.message,'er')}).then(function(){
     if(btn){btn.textContent='⬇️ 下载简历 PDF';btn.disabled=false}
   });
@@ -1756,40 +1869,30 @@ function dlResume(){
 function copyRV(){if(!ST.rvTxt)return;navigator.clipboard&&navigator.clipboard.writeText(ST.rvTxt).then(function(){toast('已复制','ok')})}
 function reSaveRV(){if(!ST.rvHtml)return;autoSave('resume',(g('rv-name').value.trim()||'简历'),{html:ST.rvHtml});toast('已保存','ok')}
 
-
-// ── HISTORY ──────────────────────────────────────────────────────────
 function getHist(){return JSON.parse(localStorage.getItem('qx_hist')||'[]')}
 function saveHistArr(arr){
   try{localStorage.setItem('qx_hist',JSON.stringify(arr))}
   catch(e){try{localStorage.setItem('qx_hist',JSON.stringify(arr.slice(0,10)))}catch(e2){}}
 }
-
 function autoSave(type,title,data){
   var arr=getHist();
   var item={id:Date.now().toString(),type:type,title:title,
     date:new Date().toLocaleDateString('zh-CN')+' '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})};
-  if(type==='ppt'){item.pptData=data.pptData||data;item.style=data.style||'business'}
+  if(type==='ppt'){item.pptData=data.pptData||data;item.style=data.style||'navy'}
   else{item.html=(data.html||'').slice(0,60000)}
   arr.unshift(item);if(arr.length>25)arr.pop();
   saveHistArr(arr);
   var dot=g('dot-badge');if(dot)dot.classList.add('on');
-  renderHomeHist();
-  setEl('ac-hist',String(getHist().length));
+  renderHomeHist();setEl('ac-hist',String(getHist().length));
 }
-
 function histCardHTML(h,showDel){
   var ems={ppt:'🎨',pdf:'📄',resume:'📋'};
   var lbs={ppt:'PPT',pdf:'PDF',resume:'简历'};
-  var cols={ppt:'linear-gradient(135deg,#7C3AED,#A855F7)',pdf:'linear-gradient(135deg,#EF4444,#F97316)',resume:'linear-gradient(135deg,#10B981,#06B6D4)'};
-  var dlBtn='<button class="hc-redl" data-hid="'+h.id+'" data-type="'+h.type+'">⬇️ 下载</button>';
+  var cols={ppt:'linear-gradient(135deg,#1B3A6B,#4DA6FF)',pdf:'linear-gradient(135deg,#5C1A1A,#E63946)',resume:'linear-gradient(135deg,#134E4A,#2DD4BF)'};
+  var dlBtn='<button class="hc-redl" data-hid="'+h.id+'" data-type="'+h.type+'">⬇️</button>';
   var delBtn=showDel?'<button class="hc-del" data-hid="'+h.id+'">🗑</button>':'';
-  return '<div class="hc" data-hid="'+h.id+'">'
-    +'<div class="hc-thumb '+(h.type||'')+'" style="background:'+(cols[h.type]||'#E5E7EB')+'">'+( ems[h.type]||'📄')+'</div>'
-    +'<div class="hc-info"><div class="hc-title">'+escHtml(h.title||'无标题')+'</div><div class="hc-meta">'+escHtml(h.date||'')+'</div></div>'
-    +'<div class="hc-r">'+dlBtn+'<span class="hc-badge">'+( lbs[h.type]||h.type||'')+'</span>'+delBtn+'</div>'
-    +'</div>';
+  return '<div class="hc"><div class="hc-thumb '+(h.type||'')+'" style="background:'+(cols[h.type]||'#E5E7EB')+'">'+( ems[h.type]||'📄')+'</div><div class="hc-info"><div class="hc-title">'+escHtml(h.title||'无标题')+'</div><div class="hc-meta">'+escHtml(h.date||'')+'</div></div><div class="hc-r">'+dlBtn+'<span class="hc-badge">'+( lbs[h.type]||h.type||'')+'</span>'+delBtn+'</div></div>';
 }
-
 function renderHist(){
   var q=(g('hs-q')&&g('hs-q').value.trim().toLowerCase())||'';
   var f=(g('hs-f')&&g('hs-f').value)||'';
@@ -1800,64 +1903,30 @@ function renderHist(){
   if(!arr.length){el.innerHTML='<div class="empty"><span class="empty-em">📦</span><p>暂无记录<br>快去创作第一个文档吧！</p></div>';return}
   el.innerHTML=arr.map(function(h){return histCardHTML(h,true)}).join('');
 }
-
 function reDownload(id,type,btn){
-  var h=getHist().find(function(x){return x.id===id});
-  if(!h){toast('记录不存在','er');return}
+  var h=getHist().find(function(x){return x.id===id});if(!h){toast('记录不存在','er');return}
   if(type==='ppt'){
     if(!h.pptData){toast('PPT数据已丢失，请重新生成','er');return}
-    toast('正在重新加载配图...','info',6000);
-    fetchAllImages(h.pptData.slides,null).then(function(imgs){
-      return buildAndDownloadPPTX(h.pptData,h.style||'business',imgs);
-    }).then(function(){
-      toast('PPTX下载成功！','ok');
-    }).catch(function(e){
-      toast('下载失败：'+e.message,'er');
-    }).then(function(){
-      if(btn){btn.textContent='⬇️ 下载';btn.disabled=false}
-    });
+    buildPPTX(h.pptData,h.style||'navy').then(function(){toast('PPTX下载成功！','ok')}).catch(function(e){toast('下载失败：'+e.message,'er')}).then(function(){if(btn){btn.textContent='⬇️';btn.disabled=false}});
   }else{
-    if(!h.html){toast('文档数据已丢失，请重新生成','er');return}
-    toast('正在生成PDF...','info',4000);
-    var tmpDiv=document.createElement('div');
-    tmpDiv.innerHTML=h.html;
-    tmpDiv.style.cssText='position:fixed;top:-9999px;left:0;width:800px;background:#fff;color:#111';
-    document.body.appendChild(tmpDiv);
-    html2canvas(tmpDiv,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(canvas){
-      document.body.removeChild(tmpDiv);
-      return canvasToPDF(canvas,(h.title||'文档')+'.pdf');
-    }).then(function(){
-      toast('PDF下载成功！','ok');
-    }).catch(function(e){
-      try{document.body.removeChild(tmpDiv)}catch(e2){}
-      toast('下载失败：'+e.message,'er');
-    }).then(function(){
-      if(btn){btn.textContent='⬇️ 下载';btn.disabled=false}
-    });
+    if(!h.html){toast('文档数据已丢失','er');return}
+    var tmp=document.createElement('div');
+    tmp.innerHTML=h.html;tmp.style.cssText='position:fixed;top:-9999px;left:0;width:800px;background:#fff;color:#111';
+    document.body.appendChild(tmp);
+    html2canvas(tmp,{scale:2,useCORS:true,backgroundColor:'#ffffff'}).then(function(cv){
+      document.body.removeChild(tmp);return canvasToPDF(cv,(h.title||'文档')+'.pdf');
+    }).then(function(){toast('PDF下载成功！','ok')}).catch(function(e){
+      try{document.body.removeChild(tmp)}catch(e2){}toast('下载失败：'+e.message,'er');
+    }).then(function(){if(btn){btn.textContent='⬇️';btn.disabled=false}});
   }
 }
-
-// Event delegation: re-download + delete
 document.addEventListener('click',function(e){
   var redl=e.target.closest('.hc-redl');
-  if(redl){
-    e.stopPropagation();
-    var id=redl.dataset.hid;var type=redl.dataset.type;
-    redl.textContent='⏳';redl.disabled=true;
-    reDownload(id,type,redl);return;
-  }
+  if(redl){e.stopPropagation();redl.textContent='⏳';redl.disabled=true;reDownload(redl.dataset.hid,redl.dataset.type,redl);return}
   var del=e.target.closest('.hc-del');
-  if(del){
-    e.stopPropagation();
-    var arr=getHist().filter(function(h){return h.id!==del.dataset.hid});
-    saveHistArr(arr);renderHist();renderHomeHist();
-    setEl('ac-hist',String(arr.length));
-    toast('已删除','ok');
-  }
+  if(del){e.stopPropagation();var arr=getHist().filter(function(h){return h.id!==del.dataset.hid});saveHistArr(arr);renderHist();renderHomeHist();setEl('ac-hist',String(arr.length));toast('已删除','ok')}
 });
 
-
-// ── MODAL & SETTINGS ─────────────────────────────────────────────────
 function showMo(title,body,primaryBtns,secBtns){
   var ph=(primaryBtns||[]).map(function(b,i){return '<button class="mo-btn pr" id="mopb'+i+'">'+escHtml(b.t)+'</button>'}).join('');
   var sh=(secBtns||[]).map(function(b,i){return '<button class="mo-btn sc" id="mosb'+i+'">'+escHtml(b.t)+'</button>'}).join('');
@@ -1868,18 +1937,17 @@ function showMo(title,body,primaryBtns,secBtns){
   var ov=g('mo-ov');if(ov)ov.classList.add('vis');
 }
 function closeMo(){var ov=g('mo-ov');if(ov)ov.classList.remove('vis')}
-
 function adMo(){
-  showMo('🛒 淘宝一分钱购物','打开淘宝APP，搜索关键词：<br><br><strong style="font-size:1.3rem;color:var(--pk);background:#FFF0F5;padding:8px 20px;border-radius:10px;display:inline-block">一分购12472</strong><br><br>海量好物，一分钱秒杀！',
+  showMo('🛒 淘宝一分钱购物','打开淘宝APP，搜索：<br><br><strong style="font-size:1.3rem;color:var(--pk);background:#FFF0F5;padding:8px 20px;border-radius:10px;display:inline-block">一分购12472</strong><br><br>海量好物一分钱！',
     [],[{t:'我知道了',fn:function(){closeMo()}}]);
 }
 function clrHistConfirm(){
-  showMo('🗑️ 清除历史记录','确定要删除全部历史记录吗？',
+  showMo('🗑️ 清除历史','确定要删除全部历史记录吗？',
     [{t:'确认清除',fn:function(){localStorage.removeItem('qx_hist');renderHist();renderHomeHist();setEl('ac-hist','0');closeMo();toast('历史已清除','ok')}}],
     [{t:'取消'}]);
 }
 function showAbout(){
-  showMo('✨ 关于晴天AI','版本：v3.0 · Claude Opus 4.6<br>配图：Gemini via OpenRouter<br>PPT：PptxGenJS 3.12<br>PDF：jsPDF + html2canvas<br><br>© 2025 晴天AI',
+  showMo('✨ 关于晴天AI','v3.1 · DeepSeek + Claude<br>PPT引擎：PptxGenJS 3.12<br>PDF：jsPDF + html2canvas<br><br>© 2025 晴天AI · pdf.zenithsmart.xin',
     [],[{t:'关闭',fn:function(){closeMo()}}]);
 }
 function toggleDark(){
@@ -1897,12 +1965,9 @@ function customKey(){
   var cs=g('mo-ck-s');if(cs)cs.addEventListener('click',function(){var v=g('mo-ki').value.trim();if(v)localStorage.setItem('qx_key',v);else localStorage.removeItem('qx_key');closeMo();toast('已保存','ok')});
 }
 
-
-// ── ONBOARD ──────────────────────────────────────────────────────────
 var obIdx=0;
 function nextOb(){
-  var track=g('ob-track');if(!track)return;
-  var total=track.children.length;
+  var track=g('ob-track');if(!track)return;var total=track.children.length;
   if(obIdx<total-1){
     obIdx++;track.style.transform='translateX(-'+(obIdx*100)+'%)';
     for(var i=0;i<total;i++){var d=g('od'+i);if(d)d.classList.toggle('on',i===obIdx)}
@@ -1911,13 +1976,10 @@ function nextOb(){
 }
 function skipOb(){localStorage.setItem('qx_ob','1');var ob=g('ob');if(ob)ob.classList.remove('vis');var lgn=g('login');if(lgn)lgn.classList.add('vis')}
 
-
-// ── BOOT ─────────────────────────────────────────────────────────────
 window.addEventListener('load',function(){
   var track=g('ob-track');if(track)track.style.transform='translateX(0)';
   if(localStorage.getItem('qx_dark')==='1'){
-    document.body.classList.add('dark');
-    var tog=g('dark-tog');if(tog)tog.classList.add('on');
+    document.body.classList.add('dark');var tog=g('dark-tog');if(tog)tog.classList.add('on');
   }
   var ti=g('tag-i');if(ti)ti.addEventListener('keydown',addSkill);
   var moOv=g('mo-ov');if(moOv)moOv.addEventListener('click',function(e){if(e.target===this)closeMo()});
