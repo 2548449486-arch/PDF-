@@ -1206,59 +1206,64 @@ function refreshAcc(s){
 
 function xhrPost(url,payload,timeoutMs,onErr){
   return new Promise(function(resolve,reject){
-    var ctrl=new AbortController();
-    var tid=setTimeout(function(){ctrl.abort();reject(new Error('请求超时，请检查网络'))},timeoutMs||120000);
-    fetch(url,{
-      method:'POST',
-      headers:{
-        'Authorization':'Bearer '+getAK(),
-        'Content-Type':'application/json',
-        'HTTP-Referer':CFG.ref||'https://pdf.zenithsmart.xin',
-        'X-Title':CFG.title||'晴天AI文档魔法师'
-      },
-      body:JSON.stringify(payload),
-      signal:ctrl.signal
-    }).then(function(resp){
+    var done=false;
+    var tid=setTimeout(function(){
+      if(done)return;done=true;
+      reject(new Error('请求超时，请稍后重试'));
+    },timeoutMs||120000);
+    try{
+      fetch(url,{
+        method:'POST',
+        headers:{
+          'Authorization':'Bearer '+getAK(),
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify(payload)
+      }).then(function(resp){
+        clearTimeout(tid);if(done)return;done=true;
+        if(!resp.ok){
+          return resp.text().then(function(txt){
+            var msg='HTTP '+resp.status;
+            try{var ej=JSON.parse(txt);if(ej.error&&ej.error.message)msg=ej.error.message;}catch(e){}
+            reject(new Error('API错误['+resp.status+']: '+msg));
+          }).catch(function(){reject(new Error('API错误: HTTP '+resp.status));});
+        }
+        return resp.json().then(function(d){resolve(d);}).catch(function(e){reject(new Error('响应解析失败: '+e.message));});
+      }).catch(function(err){
+        clearTimeout(tid);if(done)return;done=true;
+        var msg=err.message||'';
+        if(!msg||msg==='Type error'||msg==='Load failed'||msg==='Failed to fetch'){
+          msg='网络请求失败，请检查网络或稍后重试';
+        }
+        reject(new Error(msg));
+      });
+    }catch(syncErr){
       clearTimeout(tid);
-      if(!resp.ok){
-        return resp.json().then(function(ej){
-          throw new Error('API错误: '+((ej.error&&ej.error.message)?ej.error.message:'HTTP '+resp.status));
-        }).catch(function(e2){
-          if(e2.message.indexOf('API错误')===0)throw e2;
-          throw new Error('API错误: HTTP '+resp.status);
-        });
-      }
-      return resp.json();
-    }).then(function(data){
-      resolve(data);
-    }).catch(function(err){
-      clearTimeout(tid);
-      if(err.name==='AbortError')reject(new Error('请求超时，请检查网络'));
-      else reject(new Error(err.message||onErr||'网络连接失败'));
-    });
+      reject(new Error('初始化失败: '+syncErr.message));
+    }
   });
 }
 
 function callAI(userMsg,sysMsg,maxTok){
-  // Try primary model, fallback to secondary
+  var primaryErr='';
   return xhrPost(CFG.url,{
     model:CFG.model,max_tokens:maxTok||4000,
     messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
   }).then(function(d){
-    if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
+    if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常: '+JSON.stringify(d).slice(0,120));
     return d.choices[0].message.content||'';
   }).catch(function(err){
-    // Fallback to secondary model on any error
-    if(CFG.fallbackModel){
-      return xhrPost(CFG.url,{
-        model:CFG.fallbackModel,max_tokens:maxTok||4000,
-        messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
-      }).then(function(d){
-        if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
-        return d.choices[0].message.content||'';
-      });
-    }
-    throw err;
+    primaryErr=err.message;
+    if(!CFG.fallbackModel)throw err;
+    return xhrPost(CFG.url,{
+      model:CFG.fallbackModel,max_tokens:maxTok||4000,
+      messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
+    }).then(function(d){
+      if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('备用模型异常: '+JSON.stringify(d).slice(0,120));
+      return d.choices[0].message.content||'';
+    }).catch(function(fallbackErr){
+      throw new Error('主模型: '+primaryErr+' | 备用: '+fallbackErr.message);
+    });
   });
 }
 
