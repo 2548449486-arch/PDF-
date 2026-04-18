@@ -908,8 +908,8 @@ window.addEventListener('error', function(e) {
 // ══ CONFIG ══════════════════════════════════════
 const CFG={
   url:'https://openrouter.ai/api/v1/chat/completions',
-  model:'anthropic/claude-sonnet-4-5',
-  fallbackModel:'deepseek/deepseek-chat-v3-0324',
+  model:'anthropic/claude-opus-4-6:fast',
+  fallbackModel:'anthropic/claude-haiku-4-5',
   ref:'https://pdf.zenithsmart.xin',
   title:'晴天AI文档魔法师'
 };
@@ -1206,28 +1206,36 @@ function refreshAcc(s){
 
 function xhrPost(url,payload,timeoutMs,onErr){
   return new Promise(function(resolve,reject){
-    try{
-      var xhr=new XMLHttpRequest();
-      xhr.open('POST',url,true);
-      xhr.setRequestHeader('Authorization','Bearer '+getAK());
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.setRequestHeader('HTTP-Referer',CFG.ref||'https://pdf.zenithsmart.xin');
-      xhr.setRequestHeader('X-Title',CFG.title||'晴天AI文档魔法师');
-      xhr.timeout=timeoutMs||120000;
-      xhr.ontimeout=function(){reject(new Error('请求超时，请检查网络'))};
-      xhr.onerror=function(){reject(new Error(onErr||'网络连接失败，请检查网络'))};
-      xhr.onload=function(){
-        try{
-          if(xhr.status!==200){
-            var em='HTTP '+xhr.status;
-            try{var ej=JSON.parse(xhr.responseText);if(ej.error&&ej.error.message)em=ej.error.message}catch(pe){}
-            reject(new Error('API错误: '+em));return;
-          }
-          resolve(JSON.parse(xhr.responseText));
-        }catch(pe){reject(new Error('响应解析失败: '+pe.message))}
-      };
-      xhr.send(JSON.stringify(payload));
-    }catch(xe){reject(new Error('请求失败: '+xe.message))}
+    var ctrl=new AbortController();
+    var tid=setTimeout(function(){ctrl.abort();reject(new Error('请求超时，请检查网络'))},timeoutMs||120000);
+    fetch(url,{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+getAK(),
+        'Content-Type':'application/json',
+        'HTTP-Referer':CFG.ref||'https://pdf.zenithsmart.xin',
+        'X-Title':CFG.title||'晴天AI文档魔法师'
+      },
+      body:JSON.stringify(payload),
+      signal:ctrl.signal
+    }).then(function(resp){
+      clearTimeout(tid);
+      if(!resp.ok){
+        return resp.json().then(function(ej){
+          throw new Error('API错误: '+((ej.error&&ej.error.message)?ej.error.message:'HTTP '+resp.status));
+        }).catch(function(e2){
+          if(e2.message.indexOf('API错误')===0)throw e2;
+          throw new Error('API错误: HTTP '+resp.status);
+        });
+      }
+      return resp.json();
+    }).then(function(data){
+      resolve(data);
+    }).catch(function(err){
+      clearTimeout(tid);
+      if(err.name==='AbortError')reject(new Error('请求超时，请检查网络'));
+      else reject(new Error(err.message||onErr||'网络连接失败'));
+    });
   });
 }
 
