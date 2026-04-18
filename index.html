@@ -907,10 +907,14 @@ window.addEventListener('error', function(e) {
 <script>
 // ══ CONFIG ══════════════════════════════════════
 const CFG={
-  url:'https://openrouter.ai/api/v1/chat/completions',
-  model:'anthropic/claude-sonnet-4-6',
-  fallbackModel:'anthropic/claude-haiku-4-5',
-  ref:'https://qxtian.app'
+  url:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+  model:'qwen-plus',
+  key:'sk-cfb5319ee5a24f7b9361608b7615a79b',
+  fallbackUrl:'https://openrouter.ai/api/v1/chat/completions',
+  fallbackModel:'google/gemini-2.0-flash-001',
+  fallbackKey:'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',
+  ref:'https://pdf.zenithsmart.xin',
+  title:'晴天AI文档魔法师'
 };
 const CODES={
   TRYXAJI0Y:{plan:'体验版',uses:10,days:30},
@@ -1085,8 +1089,8 @@ var skills=[];
 
 function g(id){return document.getElementById(id)}
 function vib(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
-function getKey(){return localStorage.getItem('qx_key')||CFG.key||CFG.url&&'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'}
-function getAK(){return localStorage.getItem('qx_key')||'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'}
+function getKey(){return localStorage.getItem('qx_key')||CFG.key||''}
+function getAK(){return localStorage.getItem('qx_key')||CFG.key||''}
 function getChip(gid){var el=g(gid);if(!el)return '';var a=el.querySelector('.chip.on');return(a&&a.dataset)?a.dataset.v:''}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function setEl(id,txt){var e=g(id);if(e)e.textContent=txt}
@@ -1203,51 +1207,66 @@ function refreshAcc(s){
   setEl('ac-hist',String(getHist().length));
 }
 
-function xhrPost(url,payload,timeoutMs,onErr){
+function xhrPost(url,payload,timeoutMs,onErr,apiKey){
   return new Promise(function(resolve,reject){
+    var done=false;
+    var tid=setTimeout(function(){
+      if(done)return;done=true;
+      reject(new Error('请求超时，请稍后重试'));
+    },timeoutMs||120000);
     try{
-      var xhr=new XMLHttpRequest();
-      xhr.open('POST',url,true);
-      xhr.setRequestHeader('Authorization','Bearer '+getAK());
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.timeout=timeoutMs||120000;
-      xhr.ontimeout=function(){reject(new Error('请求超时，请检查网络'))};
-      xhr.onerror=function(){reject(new Error(onErr||'网络连接失败，请检查网络'))};
-      xhr.onload=function(){
-        try{
-          if(xhr.status!==200){
-            var em='HTTP '+xhr.status;
-            try{var ej=JSON.parse(xhr.responseText);if(ej.error&&ej.error.message)em=ej.error.message}catch(pe){}
-            reject(new Error('API错误: '+em));return;
-          }
-          resolve(JSON.parse(xhr.responseText));
-        }catch(pe){reject(new Error('响应解析失败: '+pe.message))}
-      };
-      xhr.send(JSON.stringify(payload));
-    }catch(xe){reject(new Error('请求失败: '+xe.message))}
+      fetch(url,{
+        method:'POST',
+        headers:{
+          'Authorization':'Bearer '+(apiKey||getAK()),
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify(payload)
+      }).then(function(resp){
+        clearTimeout(tid);if(done)return;done=true;
+        if(!resp.ok){
+          return resp.text().then(function(txt){
+            var msg='HTTP '+resp.status;
+            try{var ej=JSON.parse(txt);if(ej.error&&ej.error.message)msg=ej.error.message;}catch(e){}
+            reject(new Error('API错误['+resp.status+']: '+msg));
+          }).catch(function(){reject(new Error('API错误: HTTP '+resp.status));});
+        }
+        return resp.json().then(function(d){resolve(d);}).catch(function(e){reject(new Error('响应解析失败: '+e.message));});
+      }).catch(function(err){
+        clearTimeout(tid);if(done)return;done=true;
+        var msg=err.message||'';
+        if(!msg||msg==='Type error'||msg==='Load failed'||msg==='Failed to fetch'){
+          msg='网络请求失败，请检查网络或稍后重试';
+        }
+        reject(new Error(msg));
+      });
+    }catch(syncErr){
+      clearTimeout(tid);
+      reject(new Error('初始化失败: '+syncErr.message));
+    }
   });
 }
 
 function callAI(userMsg,sysMsg,maxTok){
-  // Try primary model, fallback to secondary
+  var primaryErr='';
   return xhrPost(CFG.url,{
     model:CFG.model,max_tokens:maxTok||4000,
     messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
-  }).then(function(d){
-    if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
+  },120000,null,CFG.key).then(function(d){
+    if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常: '+JSON.stringify(d).slice(0,120));
     return d.choices[0].message.content||'';
   }).catch(function(err){
-    // Fallback to secondary model
-    if(CFG.fallbackModel&&err.message.indexOf('region')>=0){
-      return xhrPost(CFG.url,{
-        model:CFG.fallbackModel,max_tokens:maxTok||4000,
-        messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
-      }).then(function(d){
-        if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
-        return d.choices[0].message.content||'';
-      });
-    }
-    throw err;
+    primaryErr=err.message;
+    if(!CFG.fallbackModel)throw err;
+    return xhrPost(CFG.fallbackUrl||CFG.url,{
+      model:CFG.fallbackModel,max_tokens:maxTok||4000,
+      messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
+    },120000,null,CFG.fallbackKey).then(function(d){
+      if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('备用模型异常: '+JSON.stringify(d).slice(0,120));
+      return d.choices[0].message.content||'';
+    }).catch(function(fallbackErr){
+      throw new Error('千问: '+primaryErr+' | Gemini: '+fallbackErr.message);
+    });
   });
 }
 
@@ -1267,7 +1286,7 @@ function genPPT(){
   var ppRes=g('pp-res');if(ppRes)ppRes.style.display='none';
 
   var stepArr=[
-    ['🤖 AI 深度分析主题...','DeepSeek · 专业PPT模型'],
+    ['🤖 AI 深度分析主题...','Claude · 专业PPT模型'],
     ['📐 规划幻灯片架构...','设计逻辑结构与层次'],
     ['✍️ 撰写各页精品内容...','填充专业数据与要点'],
     ['🎨 生成专业视觉方案...','高端排版 · 顶级设计']
@@ -1301,7 +1320,7 @@ function genPPT(){
   ];
   var prompt=pArr.join('');
 
-  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。').then(function(raw){
+  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。',6000).then(function(raw){
     clearInterval(timer);
     var json=raw.replace(/```json|```/g,'').trim();
     var si2=json.indexOf('{');var ei=json.lastIndexOf('}');
@@ -1323,7 +1342,7 @@ function genPPT(){
     if(ppLd)ppLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center">'
       +'<div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div>'
       +'<div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div>'
-      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：模型未覆盖地区，正在切换备用模型...</div>'
+      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：已自动切换备用模型，请重试</div>'
       +'</div>';
     toast('生成失败：'+err.message,'er',6000);
   }).then(function(){
