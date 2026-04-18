@@ -908,9 +908,10 @@ window.addEventListener('error', function(e) {
 // ══ CONFIG ══════════════════════════════════════
 const CFG={
   url:'https://openrouter.ai/api/v1/chat/completions',
-  model:'anthropic/claude-sonnet-4-6',
-  fallbackModel:'anthropic/claude-haiku-4-5',
-  ref:'https://qxtian.app'
+  model:'anthropic/claude-sonnet-4-5',
+  fallbackModel:'deepseek/deepseek-chat-v3-0324',
+  ref:'https://pdf.zenithsmart.xin',
+  title:'晴天AI文档魔法师'
 };
 const CODES={
   TRYXAJI0Y:{plan:'体验版',uses:10,days:30},
@@ -1210,6 +1211,8 @@ function xhrPost(url,payload,timeoutMs,onErr){
       xhr.open('POST',url,true);
       xhr.setRequestHeader('Authorization','Bearer '+getAK());
       xhr.setRequestHeader('Content-Type','application/json');
+      xhr.setRequestHeader('HTTP-Referer',CFG.ref||'https://pdf.zenithsmart.xin');
+      xhr.setRequestHeader('X-Title',CFG.title||'晴天AI文档魔法师');
       xhr.timeout=timeoutMs||120000;
       xhr.ontimeout=function(){reject(new Error('请求超时，请检查网络'))};
       xhr.onerror=function(){reject(new Error(onErr||'网络连接失败，请检查网络'))};
@@ -1237,8 +1240,8 @@ function callAI(userMsg,sysMsg,maxTok){
     if(!d.choices||!d.choices[0]||!d.choices[0].message)throw new Error('AI返回格式异常');
     return d.choices[0].message.content||'';
   }).catch(function(err){
-    // Fallback to secondary model
-    if(CFG.fallbackModel&&err.message.indexOf('region')>=0){
+    // Fallback to secondary model on any error
+    if(CFG.fallbackModel){
       return xhrPost(CFG.url,{
         model:CFG.fallbackModel,max_tokens:maxTok||4000,
         messages:[{role:'system',content:sysMsg||'你是专业AI助手'},{role:'user',content:userMsg}]
@@ -1267,7 +1270,7 @@ function genPPT(){
   var ppRes=g('pp-res');if(ppRes)ppRes.style.display='none';
 
   var stepArr=[
-    ['🤖 AI 深度分析主题...','DeepSeek · 专业PPT模型'],
+    ['🤖 AI 深度分析主题...','Claude · 专业PPT模型'],
     ['📐 规划幻灯片架构...','设计逻辑结构与层次'],
     ['✍️ 撰写各页精品内容...','填充专业数据与要点'],
     ['🎨 生成专业视觉方案...','高端排版 · 顶级设计']
@@ -1301,7 +1304,7 @@ function genPPT(){
   ];
   var prompt=pArr.join('');
 
-  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。').then(function(raw){
+  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。',6000).then(function(raw){
     clearInterval(timer);
     var json=raw.replace(/```json|```/g,'').trim();
     var si2=json.indexOf('{');var ei=json.lastIndexOf('}');
@@ -1323,7 +1326,7 @@ function genPPT(){
     if(ppLd)ppLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center">'
       +'<div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div>'
       +'<div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div>'
-      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：模型未覆盖地区，正在切换备用模型...</div>'
+      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：已自动切换备用模型，请重试</div>'
       +'</div>';
     toast('生成失败：'+err.message,'er',6000);
   }).then(function(){
