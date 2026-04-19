@@ -1217,10 +1217,7 @@ function xhrPost(url,payload,timeoutMs,onErr,apiKey){
     try{
       fetch(url,{
         method:'POST',
-        headers:{
-          'Authorization':'Bearer '+(apiKey||getAK()),
-          'Content-Type':'application/json'
-        },
+        headers:{'Authorization':'Bearer '+(apiKey||getAK()),'Content-Type':'application/json'},
         body:JSON.stringify(payload)
       }).then(function(resp){
         clearTimeout(tid);if(done)return;done=true;
@@ -1235,15 +1232,10 @@ function xhrPost(url,payload,timeoutMs,onErr,apiKey){
       }).catch(function(err){
         clearTimeout(tid);if(done)return;done=true;
         var msg=err.message||'';
-        if(!msg||msg==='Type error'||msg==='Load failed'||msg==='Failed to fetch'){
-          msg='网络请求失败，请检查网络或稍后重试';
-        }
+        if(!msg||msg==='Type error'||msg==='Load failed'||msg==='Failed to fetch'){msg='网络请求失败，请检查网络';}
         reject(new Error(msg));
       });
-    }catch(syncErr){
-      clearTimeout(tid);
-      reject(new Error('初始化失败: '+syncErr.message));
-    }
+    }catch(syncErr){clearTimeout(tid);reject(new Error('初始化失败: '+syncErr.message));}
   });
 }
 
@@ -1286,7 +1278,7 @@ function genPPT(){
   var ppRes=g('pp-res');if(ppRes)ppRes.style.display='none';
 
   var stepArr=[
-    ['🤖 AI 深度分析主题...','Claude · 专业PPT模型'],
+    ['🤖 AI 深度分析主题...','DeepSeek · 专业PPT模型'],
     ['📐 规划幻灯片架构...','设计逻辑结构与层次'],
     ['✍️ 撰写各页精品内容...','填充专业数据与要点'],
     ['🎨 生成专业视觉方案...','高端排版 · 顶级设计']
@@ -1299,28 +1291,27 @@ function genPPT(){
   var langNote=lang==='en'?'Reply entirely in English.':lang==='bi'?'Titles in Chinese, content in English.':'全程使用中文。';
   var extraNote=extra?(' 额外要求：'+extra):'';
 
-  // Professional structured prompt
+  // 2026 McKinsey x Google Standard
   var pArr=[
-    '你是麦肯锡顶级PPT设计专家。为主题"'+topic+'"制作'+cnt+'页专业演示文稿。',
-    langNote+extraNote,
-    ' 只返回纯JSON，格式：',
-    '{"title":"总标题","subtitle":"一句话定位","theme":"navy|rose|forest|indigo|slate|teal","slides":[',
-    '{"type":"cover","title":"封面大标题","subtitle":"封面副标题"},',
-    '{"type":"section","sectionNum":1,"title":"章节标题","desc":"本章概述"},',
-    '{"type":"content","title":"页面标题","bullets":["要点1，具体数据或论据","要点2","要点3","要点4"],"note":"演讲备注"},',
-    '{"type":"stats","title":"数据洞察","stats":[{"val":"92%","unit":"","label":"指标说明"},{"val":"3.2","unit":"亿","label":"指标说明"},{"val":"TOP 3","unit":"","label":"指标说明"}]},',
-    '{"type":"quote","quote":"核心观点或引言，要精辟有力","source":"来源或作者"},',
-    '{"type":"comparison","title":"对比分析","leftTitle":"方案A","leftPoints":["优势1","优势2"],"rightTitle":"方案B","rightPoints":["优势1","优势2"]},',
-    '{"type":"timeline","title":"发展历程","events":[{"time":"2020年","event":"事件说明"},{"time":"2022年","event":"事件说明"}]},',
-    '{"type":"end","title":"感谢聆听","contact":"联系方式"}',
+    '你是麦肯锡资深合伙人，同时具备Google、苹果、Stripe顶级视觉表达与战略思维能力。',
+    '任务：为主题「'+topic+'」设计'+cnt+'页高管级别演示文稿。'+langNote+(extraNote?extraNote:''),
+    ' 内容原则：①金字塔原理——每页一个结论，数据佐证；②每条bullet≥25字，含具体数字/案例/对比；③stats数据真实可信，体现行业洞察；④叙事弧线：现状痛点→核心洞察→解决方案→量化收益→行动号召；⑤quote须引自真实权威来源。',
+    ' 只返回纯JSON，严格如下格式：',
+    '{"title":"演示总标题（8字内，有力）","subtitle":"核心价值主张，含量化数据","author":"汇报方","theme":"navy|rose|forest|indigo|slate|teal","slides":[',
+    '{"type":"cover","title":"封面核心命题（结论式）","subtitle":"量化价值：如降本40%·提效3倍·6个月ROI"},',
+    '{"type":"section","sectionNum":1,"title":"章节标题（5字内）","desc":"本章核心结论，说明将证明什么，25字以上"},',
+    '{"type":"content","title":"结论式标题（直接给答案）","keyInsight":"核心洞察：最重要的一句话结论","bullets":["① 具体论据+数据，如：市场规模已达2.3万亿，年复合增长率28%，远超行业均值","② 具体论据+数据，如：头部企业净利率提升至19.7%，较均值高出11.2个百分点","③ 具体案例，如：标杆企业18个月内市占率从4%跃升至23%","④ 行动建议：具体可操作，含时间节点和预期收益"],"note":"演讲者备注50字以上"},',
+    '{"type":"stats","title":"关键数据洞察","subtitle":"数字背后的战略含义","stats":[{"val":"87%","unit":"","label":"核心指标\n具体说明"},{"val":"4.2","unit":"倍","label":"核心指标\n具体说明"},{"val":"380","unit":"亿","label":"核心指标\n具体说明"}],"note":"数据来源：机构/时间"},',
+    '{"type":"quote","quote":"精辟有力的战略洞察或行业领袖原话，35字以上，有思想冲击力","source":"——姓名·职位·机构/著作/报告"},',
+    '{"type":"comparison","title":"方案对比：选择的逻辑","leftTitle":"现有方案/竞品A","leftPoints":["维度1：具体不足+数字","维度2：痛点+代价","维度3：局限性"],"rightTitle":"推荐方案/我方","rightPoints":["维度1：提升幅度+数字","维度2：解决痛点+收益","维度3：独特优势+验证"],"conclusion":"推荐理由一句话"},',
+    '{"type":"timeline","title":"执行路线图","events":[{"time":"第1阶段","event":"里程碑+可量化成果"},{"time":"第2阶段","event":"里程碑+可量化成果"},{"time":"第3阶段","event":"里程碑+可量化成果"},{"time":"第4阶段","event":"里程碑+可量化成果"},{"time":"最终目标","event":"量化最终收益"}]},',
+    '{"type":"end","title":"立即行动——每推迟一天都是成本","subtitle":"下一步：本周完成的具体行动","contact":"联系方式 | 网址"}',
     ']}',
-    ' 要求：1.slides共'+cnt+'个 2.第1个type必须为cover 3.最后1个type必须为end ',
-    '4.合理穿插各种type让演示丰富多样 5.内容专业深度，有真实数据和洞察 ',
-    '6.theme选最匹配主题氛围的颜色。'
+    ' 约束：①共'+cnt+'页；②首页cover；③末页end；④content的bullets严格4条；⑤至少含1个stats、1个quote；⑥theme选最契合主题情绪的颜色；⑦只输出JSON零废话。'
   ];
   var prompt=pArr.join('');
 
-  callAI(prompt,'你是顶级PPT策划专家，只输出纯JSON，不加任何说明。',6000).then(function(raw){
+  callAI(prompt,'你是顶级PPT策划专家。只输出纯JSON，不加任何说明文字。',8000).then(function(raw){
     clearInterval(timer);
     var json=raw.replace(/```json|```/g,'').trim();
     var si2=json.indexOf('{');var ei=json.lastIndexOf('}');
@@ -1342,7 +1333,7 @@ function genPPT(){
     if(ppLd)ppLd.innerHTML='<div style="color:var(--rd);padding:20px;text-align:center">'
       +'<div style="font-size:1.1rem;margin-bottom:10px">❌ 生成失败</div>'
       +'<div style="font-size:.8rem;background:#FEE2E2;border-radius:10px;padding:10px;word-break:break-all">'+escHtml(err.message)+'</div>'
-      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：已自动切换备用模型，请重试</div>'
+      +'<div style="font-size:.75rem;color:var(--sub);margin-top:8px">提示：模型未覆盖地区，正在切换备用模型...</div>'
       +'</div>';
     toast('生成失败：'+err.message,'er',6000);
   }).then(function(){
@@ -1386,309 +1377,170 @@ function buildPPTX(pptData,style){
     try{
       var th=THEMES[style]||THEMES.navy;
       var pres=new PptxGenJS();
-      pres.layout='LAYOUT_16x9';
-      pres.author='晴天AI文档魔法师';
-      pres.title=pptData.title||'演示文稿';
-      var bg=th.bg.replace('#','');
-      var ac=th.ac.replace('#','');
-      var lt=th.lt.replace('#','');
-
+      pres.layout='LAYOUT_16x9';pres.author='晴天AI文档魔法师';pres.title=pptData.title||'演示文稿';
+      var bg=th.bg.replace('#','');var ac=th.ac.replace('#','');var total=pptData.slides.length;
       pptData.slides.forEach(function(slide,idx){
-        var sld=pres.addSlide();
-        var type=slide.type||'content';
-
+        var sld=pres.addSlide();var type=slide.type||'content';
+        var sn=(idx+1<10?'0':'')+(idx+1);var tn=(total<10?'0':'')+total;
         if(type==='cover'){
-          // ── COVER: full-bleed gradient + geometric accents ──
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
-          // Large decorative circle top-right
-          sld.addShape(pres.ShapeType.ellipse,{x:7.2,y:-1.5,w:4.5,h:4.5,fill:{color:ac,transparency:80}});
-          sld.addShape(pres.ShapeType.ellipse,{x:8.0,y:-0.8,w:3.0,h:3.0,fill:{color:ac,transparency:70}});
-          // Bottom left accent block
-          sld.addShape(pres.ShapeType.rect,{x:0,y:5.8,w:2.5,h:1.7,fill:{color:ac,transparency:75}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:6.2,w:1.5,h:1.3,fill:{color:ac,transparency:60}});
-          // Left accent bar
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.18,h:'100%',fill:{color:ac}});
-          // Main title
-          sld.addText(pptData.title||slide.title||'',{
-            x:0.5,y:1.2,w:8.5,h:2.5,fontSize:40,bold:true,color:'FFFFFF',
-            align:'left',fontFace:'微软雅黑',
-            shadow:{type:'outer',blur:12,offset:3,angle:315,color:'000000',opacity:0.4}
-          });
-          // Accent divider
-          sld.addShape(pres.ShapeType.rect,{x:0.5,y:3.7,w:4.0,h:0.06,fill:{color:ac}});
-          sld.addShape(pres.ShapeType.rect,{x:0.5,y:3.7,w:0.5,h:0.06,fill:{color:'FFFFFF'}});
-          // Subtitle
-          sld.addText(pptData.subtitle||slide.subtitle||'',{
-            x:0.5,y:3.9,w:8.5,h:0.9,fontSize:20,color:'CCCCCC',
-            align:'left',fontFace:'微软雅黑',bold:false
-          });
-          // Author & date bottom
+          for(var gi=0;gi<8;gi++){sld.addShape(pres.ShapeType.rect,{x:0,y:gi*1.0,w:'100%',h:0.005,fill:{color:'FFFFFF',transparency:93}});}
+          sld.addShape(pres.ShapeType.ellipse,{x:6.8,y:-2.2,w:5.8,h:5.8,fill:{color:'FFFFFF',transparency:94}});
+          sld.addShape(pres.ShapeType.ellipse,{x:7.6,y:-1.4,w:4.2,h:4.2,fill:{color:ac,transparency:86}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:6.5,w:3.2,h:1.0,fill:{color:ac,transparency:82}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.22,h:'100%',fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0.22,y:0,w:'100%',h:0.06,fill:{color:'FFFFFF',transparency:80}});
+          sld.addText(pptData.title||slide.title||'',{x:0.55,y:1.4,w:8.2,h:2.6,fontSize:44,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',lineSpacingMultiple:1.15,shadow:{type:'outer',blur:18,offset:4,angle:315,color:'000000',opacity:0.35}});
+          sld.addShape(pres.ShapeType.rect,{x:0.55,y:4.1,w:3.8,h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0.55,y:4.1,w:0.7,h:0.055,fill:{color:'FFFFFF'}});
+          sld.addText(pptData.subtitle||slide.subtitle||'',{x:0.55,y:4.28,w:8.5,h:1.0,fontSize:19,color:'C8D8F0',align:'left',fontFace:'微软雅黑',lineSpacingMultiple:1.4});
           var today=new Date().toLocaleDateString('zh-CN');
-          sld.addText((pptData.author||'晴天AI制作')+'  |  '+today,{
-            x:0.5,y:6.4,w:9,h:0.4,fontSize:11,color:'999999',
-            align:'left',fontFace:'微软雅黑'
-          });
+          sld.addShape(pres.ShapeType.rect,{x:0.55,y:6.35,w:2.6,h:0.38,fill:{color:'FFFFFF',transparency:88},line:{color:'FFFFFF',width:0.5,transparency:70}});
+          sld.addText((pptData.author||'晴天AI制作')+'  ·  '+today,{x:0.55,y:6.35,w:2.6,h:0.38,fontSize:10,color:'DDDDDD',align:'center',fontFace:'微软雅黑',valign:'middle'});
+          sld.addText(sn+' / '+tn,{x:8.8,y:6.65,w:1,h:0.25,fontSize:9,color:'777777',align:'right',fontFace:'微软雅黑'});
         }
-
         else if(type==='section'){
-          // ── SECTION DIVIDER: half-split design ──
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'F8F8F8'}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:4.8,h:'100%',fill:{color:bg}});
-          // Diagonal accent
-          sld.addShape(pres.ShapeType.rect,{x:4.5,y:0,w:0.6,h:'100%',fill:{color:ac,transparency:40}});
-          // Section number (large, decorative)
-          var num=String(slide.sectionNum||((idx+1)));
-          sld.addText('0'+num,{
-            x:0.3,y:0.6,w:4,h:3.0,fontSize:96,bold:true,
-            color:ac,align:'center',fontFace:'微软雅黑',transparency:30
-          });
-          // Section title
-          sld.addText(slide.title||'',{
-            x:0.3,y:3.0,w:4.2,h:1.4,fontSize:28,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑'
-          });
-          // Left bottom accent line
-          sld.addShape(pres.ShapeType.rect,{x:0.6,y:4.6,w:3.2,h:0.06,fill:{color:ac}});
-          // Right: description text
-          sld.addText(slide.desc||slide.subtitle||'',{
-            x:5.4,y:2.2,w:4.2,h:3.0,fontSize:18,
-            color:'333333',align:'left',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Right top accent
-          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.8,w:0.6,h:0.08,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'F7F8FA'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:4.65,h:'100%',fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:4.45,y:0,w:0.5,h:'100%',fill:{color:ac,transparency:55}});
+          var numStr='0'+(slide.sectionNum||String(Math.ceil((idx+1)/2)));
+          sld.addText(numStr,{x:-0.3,y:0.0,w:5.2,h:7.0,fontSize:210,bold:true,color:ac,align:'center',fontFace:'微软雅黑',transparency:82});
+          sld.addText('SECTION '+numStr,{x:0.4,y:0.5,w:3.8,h:0.4,fontSize:11,color:ac,align:'left',fontFace:'微软雅黑',charSpacing:4});
+          sld.addText(slide.title||'',{x:0.4,y:2.8,w:4.0,h:1.8,fontSize:30,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',lineSpacingMultiple:1.3});
+          sld.addShape(pres.ShapeType.rect,{x:0.4,y:4.72,w:2.8,h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:5.25,y:1.8,w:4.2,h:0.055,fill:{color:bg,transparency:60}});
+          sld.addText('本章核心',{x:5.25,y:1.4,w:4.2,h:0.5,fontSize:11,color:'9CA3AF',align:'left',fontFace:'微软雅黑',charSpacing:3});
+          sld.addText(slide.desc||slide.subtitle||'',{x:5.25,y:2.1,w:4.3,h:4.0,fontSize:17,color:'1F2937',align:'left',fontFace:'微软雅黑',valign:'top',lineSpacingMultiple:1.7});
+          sld.addText(sn+' / '+tn,{x:8.8,y:6.65,w:1,h:0.25,fontSize:9,color:'9CA3AF',align:'right',fontFace:'微软雅黑'});
         }
-
         else if(type==='stats'){
-          // ── STATS: clean white with large KPI boxes ──
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
-          // Top header
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.4,fill:{color:bg}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:1.35,w:'100%',h:0.08,fill:{color:ac}});
-          sld.addText(slide.title||'数据洞察',{
-            x:0.4,y:0.15,w:9.2,h:1.1,fontSize:24,bold:true,
-            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Stat boxes
-          var stats=slide.stats||[];
-          var boxW=Math.min(3.0,9.0/Math.max(stats.length,1));
-          var boxX=0.5+(9.0-boxW*stats.length-0.3*(stats.length-1))/2;
-          stats.forEach(function(stat,i){
-            var x=boxX+i*(boxW+0.3);
-            // Shadow box
-            sld.addShape(pres.ShapeType.rect,{
-              x:x,y:1.8,w:boxW,h:4.2,
-              fill:{color:'F9F9F9'},
-              line:{color:'EEEEEE',width:1}
-            });
-            // Top color accent
-            sld.addShape(pres.ShapeType.rect,{x:x,y:1.8,w:boxW,h:0.18,fill:{color:ac}});
-            // Large value
-            sld.addText(stat.val||'',{
-              x:x,y:2.4,w:boxW,h:1.8,fontSize:52,bold:true,
-              color:bg,align:'center',fontFace:'微软雅黑'
-            });
-            // Unit
-            if(stat.unit)sld.addText(stat.unit,{
-              x:x,y:3.9,w:boxW,h:0.6,fontSize:18,
-              color:ac,align:'center',fontFace:'微软雅黑',bold:true
-            });
-            // Label
-            sld.addText(stat.label||'',{
-              x:x+0.1,y:4.7,w:boxW-0.2,h:1.1,fontSize:14,
-              color:'555555',align:'center',fontFace:'微软雅黑'
-            });
-          });
-          // Footer
-          sld.addText((slide.note||'')+'  |  晴天AI制作',{
-            x:0,y:6.8,w:'100%',h:0.3,fontSize:9,color:'AAAAAA',align:'center',fontFace:'微软雅黑'
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.5,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.48,w:'100%',h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.1,h:'100%',fill:{color:ac}});
+          sld.addText(slide.title||'关键数据',{x:0.3,y:0.1,w:7.5,h:0.9,fontSize:26,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'});
+          sld.addText(slide.subtitle||'数据来源：'+(slide.note||'行业权威机构'),{x:0.3,y:1.02,w:7.5,h:0.42,fontSize:12,color:'99BBDD',align:'left',fontFace:'微软雅黑',valign:'middle'});
+          sld.addText(sn+'/'+tn,{x:8.8,y:0.55,w:1,h:0.45,fontSize:11,color:'AACCEE',align:'right',fontFace:'微软雅黑'});
+          var stats=slide.stats||[];var n=Math.min(stats.length,4);
+          var gapX=0.25;var cardW=(9.7-gapX*(n-1))/n;var startX=0.15;
+          stats.slice(0,4).forEach(function(stat,i){
+            var cx=startX+i*(cardW+gapX);
+            sld.addShape(pres.ShapeType.rect,{x:cx,y:1.72,w:cardW,h:4.9,fill:{color:'FAFBFC'},line:{color:'E8ECF0',width:1}});
+            sld.addShape(pres.ShapeType.rect,{x:cx,y:1.72,w:cardW,h:0.24,fill:{color:ac}});
+            sld.addShape(pres.ShapeType.ellipse,{x:cx+0.18,y:2.28,w:0.24,h:0.24,fill:{color:ac,transparency:80}});
+            sld.addText(String(i+1),{x:cx+0.18,y:2.28,w:0.24,h:0.24,fontSize:8,bold:true,color:bg,align:'center',fontFace:'微软雅黑',valign:'middle'});
+            sld.addText(stat.val||'',{x:cx,y:2.55,w:cardW,h:1.9,fontSize:n<=3?60:50,bold:true,color:bg,align:'center',fontFace:'微软雅黑'});
+            if(stat.unit)sld.addText(stat.unit,{x:cx,y:4.35,w:cardW,h:0.55,fontSize:20,bold:true,color:ac,align:'center',fontFace:'微软雅黑'});
+            sld.addShape(pres.ShapeType.rect,{x:cx+cardW*0.2,y:4.98,w:cardW*0.6,h:0.03,fill:{color:'DDDDDD'}});
+            sld.addText(stat.label||'',{x:cx+0.08,y:5.05,w:cardW-0.16,h:1.4,fontSize:12,color:'6B7280',align:'center',fontFace:'微软雅黑',valign:'top',lineSpacingMultiple:1.6});
           });
         }
-
         else if(type==='quote'){
-          // ── QUOTE: full gradient with large quote ──
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
-          // Decorative circles
-          sld.addShape(pres.ShapeType.ellipse,{x:-0.5,y:4.5,w:3,h:3,fill:{color:ac,transparency:80}});
-          sld.addShape(pres.ShapeType.ellipse,{x:8.5,y:-0.5,w:2.5,h:2.5,fill:{color:'FFFFFF',transparency:88}});
-          // Large quote mark
-          sld.addText('“',{
-            x:0.5,y:0.2,w:3,h:2.5,fontSize:120,bold:true,
-            color:ac,fontFace:'Georgia',transparency:40
-          });
-          // Quote text
-          sld.addText(slide.quote||'',{
-            x:0.8,y:1.4,w:8.4,h:3.2,fontSize:24,bold:false,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑',
-            italic:true,valign:'middle'
-          });
-          // Divider
-          sld.addShape(pres.ShapeType.rect,{x:4,y:5.0,w:2,h:0.05,fill:{color:ac}});
-          // Source
-          sld.addText('— '+(slide.source||''),{
-            x:0,y:5.2,w:'100%',h:0.6,fontSize:14,
-            color:'BBBBBB',align:'center',fontFace:'微软雅黑'
-          });
-        }
-
-        else if(type==='comparison'){
-          // ── COMPARISON: two-column with VS divider ──
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.3,fill:{color:bg}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:1.25,w:'100%',h:0.08,fill:{color:ac}});
-          sld.addText(slide.title||'对比分析',{
-            x:0.4,y:0.1,w:9.2,h:1.1,fontSize:24,bold:true,
-            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Left panel
-          sld.addShape(pres.ShapeType.rect,{x:0.3,y:1.5,w:4.3,h:5.5,fill:{color:bg,transparency:88},line:{color:ac,width:1.5}});
-          sld.addShape(pres.ShapeType.rect,{x:0.3,y:1.5,w:4.3,h:0.6,fill:{color:bg}});
-          sld.addText(slide.leftTitle||'方案 A',{
-            x:0.3,y:1.5,w:4.3,h:0.6,fontSize:16,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
-          });
-          (slide.leftPoints||[]).forEach(function(p,i){
-            sld.addShape(pres.ShapeType.ellipse,{x:0.55,y:2.35+i*0.82,w:0.18,h:0.18,fill:{color:ac}});
-            sld.addText(p,{x:0.85,y:2.25+i*0.82,w:3.6,h:0.7,fontSize:13,color:'222222',fontFace:'微软雅黑',valign:'middle'});
-          });
-          // VS divider
-          sld.addShape(pres.ShapeType.ellipse,{x:4.65,y:3.4,w:0.7,h:0.7,fill:{color:ac}});
-          sld.addText('VS',{x:4.65,y:3.4,w:0.7,h:0.7,fontSize:11,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
-          // Right panel
-          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.5,w:4.3,h:5.5,fill:{color:bg,transparency:88},line:{color:'E63946',width:1.5}});
-          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.5,w:4.3,h:0.6,fill:{color:'991B1B'}});
-          sld.addText(slide.rightTitle||'方案 B',{
-            x:5.4,y:1.5,w:4.3,h:0.6,fontSize:16,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
-          });
-          (slide.rightPoints||[]).forEach(function(p,i){
-            sld.addShape(pres.ShapeType.ellipse,{x:5.62,y:2.35+i*0.82,w:0.18,h:0.18,fill:{color:'E63946'}});
-            sld.addText(p,{x:5.9,y:2.25+i*0.82,w:3.6,h:0.7,fontSize:13,color:'222222',fontFace:'微软雅黑',valign:'middle'});
-          });
-        }
-
-        else if(type==='timeline'){
-          // ── TIMELINE: horizontal with nodes ──
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.3,fill:{color:bg}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:1.25,w:'100%',h:0.08,fill:{color:ac}});
-          sld.addText(slide.title||'发展历程',{
-            x:0.4,y:0.1,w:9.2,h:1.1,fontSize:24,bold:true,
-            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Timeline line
-          sld.addShape(pres.ShapeType.rect,{x:0.6,y:4.0,w:8.8,h:0.06,fill:{color:'DDDDDD'}});
-          var events=slide.events||[];
-          var evtCount=Math.min(events.length,5);
-          var spacing=8.8/(Math.max(evtCount-1,1));
-          events.slice(0,5).forEach(function(evt,i){
-            var x=0.6+i*spacing;
-            // Node circle
-            sld.addShape(pres.ShapeType.ellipse,{x:x-0.2,y:3.77,w:0.4,h:0.4,fill:{color:ac},line:{color:'FFFFFF',width:2}});
-            // Date (above line)
-            sld.addText(evt.time||'',{
-              x:x-0.8,y:2.8,w:1.6,h:0.7,fontSize:13,bold:true,
-              color:bg,align:'center',fontFace:'微软雅黑'
-            });
-            // Connector line up
-            sld.addShape(pres.ShapeType.rect,{x:x-0.02,y:3.4,w:0.04,h:0.4,fill:{color:ac,transparency:50}});
-            // Event desc (below line)
-            sld.addText(evt.event||'',{
-              x:x-0.9,y:4.25,w:1.8,h:1.5,fontSize:12,
-              color:'444444',align:'center',fontFace:'微软雅黑',valign:'top'
-            });
-          });
-        }
-
-        else if(type==='end'){
-          // ── END: full gradient + decorative ──
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
-          sld.addShape(pres.ShapeType.ellipse,{x:6.5,y:4.5,w:5,h:5,fill:{color:ac,transparency:82}});
-          sld.addShape(pres.ShapeType.ellipse,{x:-1,y:-1,w:4,h:4,fill:{color:'FFFFFF',transparency:90}});
+          for(var qi=0;qi<6;qi++){sld.addShape(pres.ShapeType.rect,{x:0,y:qi*1.2,w:'100%',h:0.003,fill:{color:'FFFFFF',transparency:96}});}
+          sld.addShape(pres.ShapeType.ellipse,{x:-1.2,y:3.5,w:4.5,h:4.5,fill:{color:ac,transparency:87}});
+          sld.addShape(pres.ShapeType.ellipse,{x:8.2,y:-1.5,w:4.0,h:4.0,fill:{color:'FFFFFF',transparency:93}});
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.18,h:'100%',fill:{color:ac}});
-          sld.addShape(pres.ShapeType.rect,{x:9.82,y:0,w:0.18,h:'100%',fill:{color:ac,transparency:60}});
-          sld.addText(slide.title||'感谢聆听',{
-            x:0.5,y:1.5,w:9,h:2.5,fontSize:48,bold:true,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑',
-            shadow:{type:'outer',blur:10,offset:3,angle:315,color:'000000',opacity:0.35}
+          sld.addText('“',{x:0.5,y:-0.3,w:3.5,h:2.8,fontSize:160,bold:true,color:ac,fontFace:'Georgia',transparency:55});
+          sld.addText(slide.quote||'',{x:0.9,y:1.6,w:8.1,h:3.2,fontSize:23,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle',italic:true,lineSpacingMultiple:1.75});
+          sld.addShape(pres.ShapeType.rect,{x:3.8,y:5.1,w:2.4,h:0.05,fill:{color:ac}});
+          sld.addText(slide.source||'',{x:0.5,y:5.3,w:9,h:0.7,fontSize:13,color:'AACCEE',align:'center',fontFace:'微软雅黑'});
+          sld.addText(sn+'/'+tn,{x:8.8,y:6.65,w:1,h:0.25,fontSize:9,color:'557799',align:'right',fontFace:'微软雅黑'});
+        }
+        else if(type==='comparison'){
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.38,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.35,w:'100%',h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.1,h:'100%',fill:{color:ac}});
+          sld.addText(slide.title||'方案对比',{x:0.28,y:0.1,w:8.5,h:1.1,fontSize:26,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'});
+          sld.addText(sn+'/'+tn,{x:8.8,y:0.5,w:1,h:0.4,fontSize:11,color:'AACCEE',align:'right',fontFace:'微软雅黑'});
+          sld.addShape(pres.ShapeType.rect,{x:0.18,y:1.58,w:4.42,h:5.1,fill:{color:bg,transparency:91},line:{color:ac,width:2}});
+          sld.addShape(pres.ShapeType.rect,{x:0.18,y:1.58,w:4.42,h:0.65,fill:{color:bg}});
+          sld.addText(slide.leftTitle||'方案 A',{x:0.18,y:1.58,w:4.42,h:0.65,fontSize:15,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
+          (slide.leftPoints||[]).forEach(function(p,i){
+            sld.addShape(pres.ShapeType.rect,{x:0.42,y:2.5+i*0.78,w:0.12,h:0.38,fill:{color:ac}});
+            sld.addText(p,{x:0.65,y:2.4+i*0.78,w:3.7,h:0.68,fontSize:12.5,color:'1F2937',fontFace:'微软雅黑',valign:'middle',lineSpacingMultiple:1.3});
           });
-          sld.addShape(pres.ShapeType.rect,{x:3.5,y:4.0,w:3,h:0.07,fill:{color:ac}});
-          if(slide.contact){
-            sld.addText(slide.contact,{
-              x:0.5,y:4.3,w:9,h:0.8,fontSize:16,
-              color:'CCCCCC',align:'center',fontFace:'微软雅黑'
-            });
-          }
-          sld.addText('Powered by 晴天AI · pdf.zenithsmart.xin',{
-            x:0,y:6.6,w:'100%',h:0.4,fontSize:10,
-            color:'777777',align:'center',fontFace:'微软雅黑'
+          sld.addShape(pres.ShapeType.ellipse,{x:4.55,y:3.55,w:0.9,h:0.9,fill:{color:bg}});
+          sld.addText('VS',{x:4.55,y:3.55,w:0.9,h:0.9,fontSize:13,bold:true,color:ac,align:'center',fontFace:'微软雅黑',valign:'middle'});
+          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.58,w:4.42,h:5.1,fill:{color:ac,transparency:93},line:{color:ac,width:2}});
+          sld.addShape(pres.ShapeType.rect,{x:5.4,y:1.58,w:4.42,h:0.65,fill:{color:ac}});
+          sld.addText(slide.rightTitle||'方案 B',{x:5.4,y:1.58,w:4.42,h:0.65,fontSize:15,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
+          (slide.rightPoints||[]).forEach(function(p,i){
+            sld.addShape(pres.ShapeType.rect,{x:5.62,y:2.5+i*0.78,w:0.12,h:0.38,fill:{color:ac}});
+            sld.addText(p,{x:5.85,y:2.4+i*0.78,w:3.7,h:0.68,fontSize:12.5,color:'1F2937',fontFace:'微软雅黑',valign:'middle',lineSpacingMultiple:1.3});
+          });
+          if(slide.conclusion){sld.addText('推荐：'+slide.conclusion,{x:0.18,y:6.55,w:9.64,h:0.4,fontSize:11,color:'6B7280',align:'center',fontFace:'微软雅黑'});}
+        }
+        else if(type==='timeline'){
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.42,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.40,w:'100%',h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.1,h:'100%',fill:{color:ac}});
+          sld.addText(slide.title||'执行路线图',{x:0.28,y:0.1,w:8.5,h:1.15,fontSize:26,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'});
+          sld.addText(sn+'/'+tn,{x:8.8,y:0.55,w:1,h:0.4,fontSize:11,color:'AACCEE',align:'right',fontFace:'微软雅黑'});
+          sld.addShape(pres.ShapeType.rect,{x:0.5,y:4.15,w:9.2,h:0.07,fill:{color:'E5E7EB'}});
+          sld.addShape(pres.ShapeType.rect,{x:0.5,y:4.15,w:9.2,h:0.07,fill:{color:ac,transparency:70}});
+          var evts=slide.events||[];var ec=Math.min(evts.length,5);
+          var sp=ec>1?(9.2/(ec-1)):9.2;
+          evts.slice(0,5).forEach(function(ev,i){
+            var ex=0.5+i*sp;var isOdd=i%2===1;
+            sld.addShape(pres.ShapeType.ellipse,{x:ex-0.25,y:3.97,w:0.5,h:0.5,fill:{color:ac},line:{color:'FFFFFF',width:2.5}});
+            sld.addText(String(i+1),{x:ex-0.25,y:3.97,w:0.5,h:0.5,fontSize:11,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
+            sld.addShape(pres.ShapeType.rect,{x:ex-0.02,y:isOdd?3.0:4.48,w:0.04,h:isOdd?0.97:0.5,fill:{color:ac,transparency:60}});
+            sld.addText(ev.time||'',{x:ex-1.05,y:isOdd?2.3:5.05,w:2.1,h:0.55,fontSize:12,bold:true,color:bg,align:'center',fontFace:'微软雅黑'});
+            sld.addText(ev.event||'',{x:ex-1.0,y:isOdd?1.65:5.65,w:2.0,h:1.3,fontSize:11,color:'374151',align:'center',fontFace:'微软雅黑',valign:'top',lineSpacingMultiple:1.45});
           });
         }
-
+        else if(type==='end'){
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:bg}});
+          for(var eni=0;eni<8;eni++){sld.addShape(pres.ShapeType.rect,{x:0,y:eni*1.0,w:'100%',h:0.005,fill:{color:'FFFFFF',transparency:93}});}
+          sld.addShape(pres.ShapeType.ellipse,{x:7.0,y:4.2,w:5.5,h:5.5,fill:{color:'FFFFFF',transparency:95}});
+          sld.addShape(pres.ShapeType.ellipse,{x:7.5,y:4.6,w:4.2,h:4.2,fill:{color:ac,transparency:86}});
+          sld.addShape(pres.ShapeType.ellipse,{x:-1.5,y:-1.5,w:4.5,h:4.5,fill:{color:ac,transparency:90}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.22,h:'100%',fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0.22,y:0,w:'100%',h:0.06,fill:{color:'FFFFFF',transparency:80}});
+          sld.addText(slide.title||'立即开始',{x:0.55,y:1.5,w:9,h:2.5,fontSize:50,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',shadow:{type:'outer',blur:16,offset:4,angle:315,color:'000000',opacity:0.3}});
+          if(slide.subtitle){sld.addText(slide.subtitle,{x:0.55,y:4.05,w:9,h:0.75,fontSize:18,color:'AACCEE',align:'center',fontFace:'微软雅黑'});}
+          sld.addShape(pres.ShapeType.rect,{x:3.6,y:4.88,w:2.8,h:0.055,fill:{color:ac}});
+          if(slide.contact){sld.addText(slide.contact,{x:0.55,y:5.1,w:9,h:0.75,fontSize:15,color:'C8D8F0',align:'center',fontFace:'微软雅黑'});}
+          sld.addText('Powered by 晴天AI · pdf.zenithsmart.xin',{x:0,y:6.65,w:'100%',h:0.3,fontSize:10,color:'557799',align:'center',fontFace:'微软雅黑'});
+        }
         else{
-          // ── CONTENT: professional white layout ──
           sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:'100%',fill:{color:'FFFFFF'}});
-          // Header
-          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.35,fill:{color:bg}});
-          sld.addShape(pres.ShapeType.rect,{x:0,y:1.3,w:'100%',h:0.08,fill:{color:ac}});
-          // Left accent bar
-          sld.addShape(pres.ShapeType.rect,{x:0,y:1.38,w:0.1,h:6.12,fill:{color:ac,transparency:70}});
-          // Slide number badge
-          sld.addShape(pres.ShapeType.rect,{x:8.7,y:0.2,w:1.0,h:0.7,fill:{color:ac,transparency:40}});
-          sld.addText((idx+1)+'/'+pptData.slides.length,{
-            x:8.7,y:0.2,w:1.0,h:0.7,fontSize:12,
-            color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Title
-          sld.addText(slide.title||'',{
-            x:0.3,y:0.1,w:8.3,h:1.1,fontSize:22,bold:true,
-            color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle'
-          });
-          // Bullet points with custom design
-          var bullets=slide.bullets||slide.content||[];
-          var bH=Math.min(0.95,(5.5/Math.max(bullets.length,1)));
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:'100%',h:1.42,fill:{color:bg}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:1.40,w:'100%',h:0.055,fill:{color:ac}});
+          sld.addShape(pres.ShapeType.rect,{x:0,y:0,w:0.1,h:'100%',fill:{color:ac}});
+          sld.addText(slide.title||'',{x:0.28,y:0.1,w:8.2,h:1.18,fontSize:23,bold:true,color:'FFFFFF',align:'left',fontFace:'微软雅黑',valign:'middle',lineSpacingMultiple:1.2});
+          sld.addText(sn+'/'+tn,{x:8.82,y:0.52,w:1,h:0.45,fontSize:11,color:'AACCEE',align:'right',fontFace:'微软雅黑'});
+          var bodyStart=1.62;
+          if(slide.keyInsight){
+            sld.addShape(pres.ShapeType.rect,{x:0.28,y:1.58,w:9.44,h:0.7,fill:{color:ac,transparency:90},line:{color:ac,width:1.5,transparency:60}});
+            sld.addShape(pres.ShapeType.rect,{x:0.28,y:1.58,w:0.12,h:0.7,fill:{color:ac}});
+            sld.addText('>> '+slide.keyInsight,{x:0.52,y:1.58,w:9.2,h:0.7,fontSize:13,bold:true,color:bg,align:'left',fontFace:'微软雅黑',valign:'middle'});
+            bodyStart=2.45;
+          }
+          var bullets=slide.bullets||slide.content||[];var bCount=Math.max(bullets.length,1);
+          var availH=7.0-bodyStart-0.25;var bH=Math.min(1.1,availH/bCount);
           bullets.forEach(function(b,i){
-            var y=1.65+i*bH;
-            // Numbered circle
-            sld.addShape(pres.ShapeType.ellipse,{
-              x:0.25,y:y+(bH/2-0.22),w:0.44,h:0.44,fill:{color:ac}
-            });
-            sld.addText(String(i+1),{
-              x:0.25,y:y+(bH/2-0.22),w:0.44,h:0.44,fontSize:13,bold:true,
-              color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'
-            });
-            // Bullet text (left half) - check if long (use full width)
-            sld.addText(b,{
-              x:0.85,y:y,w:8.85,h:bH,fontSize:bH>0.8?15:14,
-              color:'222222',align:'left',fontFace:'微软雅黑',valign:'middle'
-            });
-            // Light separator
-            if(i<bullets.length-1){
-              sld.addShape(pres.ShapeType.rect,{x:0.85,y:y+bH-0.02,w:8.85,h:0.01,fill:{color:'EEEEEE'}});
-            }
+            var by=bodyStart+i*bH;
+            if(i%2===0){sld.addShape(pres.ShapeType.rect,{x:0.18,y:by,w:9.54,h:bH,fill:{color:'F9FAFB'}});}
+            sld.addShape(pres.ShapeType.rect,{x:0.28,y:by+(bH/2-0.15),w:0.3,h:0.3,fill:{color:ac}});
+            sld.addText(String(i+1),{x:0.28,y:by+(bH/2-0.15),w:0.3,h:0.3,fontSize:10,bold:true,color:'FFFFFF',align:'center',fontFace:'微软雅黑',valign:'middle'});
+            sld.addText(b,{x:0.72,y:by,w:9.0,h:bH,fontSize:bH>0.9?15:14,color:'1F2937',align:'left',fontFace:'微软雅黑',valign:'middle',lineSpacingMultiple:1.35});
           });
-          // Right decorative accent (background shape)
-          sld.addShape(pres.ShapeType.ellipse,{x:8.5,y:5.0,w:2.0,h:2.0,fill:{color:ac,transparency:90}});
-          // Bottom bar
-          sld.addShape(pres.ShapeType.rect,{x:0,y:6.9,w:'100%',h:0.1,fill:{color:ac,transparency:60}});
-          // Notes
+          sld.addShape(pres.ShapeType.rect,{x:0,y:6.92,w:'100%',h:0.08,fill:{color:ac,transparency:75}});
           if(slide.note)sld.addNotes(slide.note);
         }
-
-        // Watermark for guests
         if(ST.isGuest){
-          sld.addText('晴天AI · 游客试用版',{
-            x:0,y:6.65,w:'100%',h:0.25,fontSize:8,
-            color:'AAAAAA',align:'center',fontFace:'微软雅黑',transparency:30
-          });
+          sld.addText('晴天AI · 游客试用版 · pdf.zenithsmart.xin',{x:0,y:6.62,w:'100%',h:0.28,fontSize:8,color:'BBBBBB',align:'center',fontFace:'微软雅黑',transparency:25});
         }
       });
-
       pres.writeFile({fileName:(pptData.title||'演示文稿')+'.pptx'})
         .then(function(){resolve()}).catch(function(e){reject(e)});
     }catch(be){reject(be)}
   });
 }
-
 function dlPPT(){
   if(!ST.pptData){toast('请先生成PPT','er');return}
   vib(10);
@@ -1728,22 +1580,19 @@ function genPDF(){
   var pfRes=g('pf-res');if(pfRes)pfRes.style.display='none';
   var steps=['🤖 构思文档框架...','📝 撰写正文内容...','✍️ 优化语言表达...','🎨 整理排版格式...'];
   var si=0;var timer=setInterval(function(){try{setEl('pf-step',steps[si%steps.length]);si++}catch(e){}},2000);
-  var lmap={short:'约600字',medium:'约1500字',long:'约3000字'};
-  var tmap={report:'工作报告',proposal:'项目方案',analysis:'分析报告',plan:'计划书',manual:'操作手册',summary:'年终总结'};
+  var lmap={short:'约800字，简洁精炼',medium:'约2000字，内容翔实',long:'约4000字，深度全面'};
+  var tmap={report:'工作汇报',proposal:'商业提案',analysis:'深度分析报告',plan:'战略规划书',manual:'操作指南',summary:'年度总结报告'};
   var today=new Date().toLocaleDateString('zh-CN');
-  var ptNote=pts?(' 关键要点参考：'+pts):'';
+  var ptNote=pts?('【核心要点】：'+pts+'。请围绕以上要点展开，确保全面覆盖。'):'';
   var pArr=[
-    '撰写专业'+(tmap[type]||'文档')+'，主题："'+topic+'"。',
-    ptNote,' 要求：'+(lmap[len]||lmap.medium)+'，层次清晰，语言专业权威。',
-    ' 输出HTML（从<article>开始）：',
-    '<article style="font-family:PingFang SC,Microsoft YaHei,sans-serif;max-width:720px;margin:0 auto;padding:32px;color:#111;line-height:1.9;font-size:14px">',
-    '<h1 style="text-align:center;font-size:22px;color:#1B3A6B;margin-bottom:6px;font-weight:700">标题</h1>',
-    '<p style="text-align:center;font-size:11px;color:#9CA3AF;margin-bottom:32px;border-bottom:2px solid #1B3A6B;padding-bottom:12px">'+today+' | 晴天AI专业文档</p>',
-    '<h2 style="font-size:16px;color:#1B3A6B;border-left:4px solid #4DA6FF;padding-left:12px;margin:24px 0 10px;font-weight:700">章节</h2>',
-    '<p style="margin-bottom:14px;text-indent:2em">内容</p>',
-    '</article>'
+    '你是麦肯锡资深顾问，为「'+topic+'」撰写一份顶级'+(tmap[type]||'专业文档')+'。',
+    ptNote,
+    ' 文档规格：'+(lmap[len]||lmap.medium)+'，语言专业权威，逻辑严密，有真实数据和行业洞察。',
+    ' 输出格式：严格输出完整HTML，从<article>标签开始，样式全部inline，风格参照麦肯锡报告x谷歌Material Design，有视觉层次和阅读吸引力。',
+    ' HTML结构（按顺序）：①封面区：深色背景#1B3A6B，文档类型标签、大标题白色、副标题、日期/作者；②执行摘要：浅蓝底框，3-5条核心结论≥15字；③正文章节：编号01/02...、主标题、核心结论句、段落；④关键洞察框：深色左边框+浅底；⑤数据/列表：规整表格或有序列表；⑥结论建议：具体行动项含优先级；⑦页脚：'+today+' | 晴天AI · pdf.zenithsmart.xin',
+    ' 设计规范：主色#1B3A6B，强调色#4DA6FF，正文#1F2937，行高1.9，字号14px，所有样式inline。只输出HTML，零废话。'
   ];
-  callAI(pArr.join(''),'你是顶级文案专家，输出规范HTML文档，内容专业翔实，只输出HTML。').then(function(html){
+  callAI(pArr.join(''),'你是顶级商业文案专家，输出精美专业HTML文档，样式全部inline，内容深度专业，只输出HTML代码。',6000).then(function(html){
     clearInterval(timer);
     var content=html.replace(/```html|```/g,'').trim();
     var si2=content.indexOf('<article');var ei=content.lastIndexOf('</article>')+10;
@@ -1849,16 +1698,16 @@ function genResume(){
   var scMap={modern:{h:'#1B3A6B',a:'#4DA6FF'},classic:{h:'#1E293B',a:'#F0A500'},creative:{h:'#134E4A',a:'#2DD4BF'}};
   var sc=scMap[style]||scMap.modern;
   var pArr=[
-    '生成专业简历。姓名:'+name+'，职位:'+pos+'，电话:'+(tel||'未填')+
-    '，邮箱:'+(mail||'未填')+'，城市:'+(city||'未填')+'，学历:'+(edu||'未填')+
-    '。简介:'+(sum||'请根据经历生成简介')+
-    '。工作经历:'+JSON.stringify(exps)+
-    '。教育:'+JSON.stringify(edusList)+
-    '。技能:'+(skills.length?skills.join(','):'请推荐技能')+
-    '。要求：优化简介突出核心价值，量化成果，输出完整A4简历HTML（只从<div>开始）。',
-    '主色'+sc.h+'，强调色'+sc.a+'，排版专业精美参考顶级猎头简历风格。只输出HTML。'
+    '你是硅谷顶级猎头+人才总监，同时具备顶级UI设计眼光。为以下候选人生成一份能通过Google/麦肯锡/BAT筛选的2026顶级简历。',
+    '候选人：姓名:'+name+'，目标职位:'+pos+'，电话:'+(tel||'未填')+'，邮箱:'+(mail||'未填')+'，城市:'+(city||'未填')+'，学历:'+(edu||'未填')+
+    '，简介原文:'+(sum||'请根据经历推断并优化，突出核心竞争力')+
+    '，工作经历:'+JSON.stringify(exps)+
+    '，教育经历:'+JSON.stringify(edusList)+
+    '，核心技能:'+(skills.length?skills.join('、'):'请根据职位推荐5-8项技能'),
+    ' 简历优化要求：①个人简介必须重写，突出核心竞争力+量化成果+差异化价值，3句话以内；②每段工作经历STAR格式：行动动词开头+量化数据（如主导X项目，带领8人团队，3个月提升转化率34%，贡献营收1200万）；③技能按掌握程度分层；④ATS友好。',
+    ' HTML规范（从<div>开始，样式全部inline）：采用现代双栏布局：左栏30%背景'+sc.h+'白色文字，含头像占位圆形+姓名+职位+联系信息+技能标签badge+教育；右栏70%白色，含个人简介浅色强调框+工作经历STAR描述+成就亮点。设计：主色'+sc.h+'，强调色'+sc.a+'，章节标题用强调色+左边框，正文14px行高1.8，整体参照Google/Microsoft顶级员工简历风格。只输出HTML，零废话。'
   ];
-  callAI(pArr.join(''),'你是顶级HR专家，输出规范简历HTML，排版精美').then(function(html){
+  callAI(pArr.join(''),'你是顶级简历优化专家+UI设计师。输出精美专业HTML简历，样式全部inline，ATS友好，视觉顶级，只输出HTML。',6000).then(function(html){
     clearInterval(timer);
     var content=html.replace(/```html|```/g,'').trim();
     var si2=content.indexOf('<div');var ei=content.lastIndexOf('</div>')+6;
